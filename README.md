@@ -2,7 +2,7 @@
 
 A learning-oriented Python application for exploring a synthetic recombinant
 protein fed-batch bioreactor and, in future phases, developing PAT analytics.
-**Phases 1–4 are implemented.** The default measurements are synthetic. This is an
+**Phases 1–5 are implemented.** The default measurements are synthetic. This is an
 educational portfolio demonstration, not a manufacturing-validated system.
 
 ## Start locally in VS Code
@@ -161,12 +161,50 @@ Read the [Phase 4 learning guide](docs/phase_4_learning_guide.md) for the featur
 recipes, PLS and validation mathematics, code walkthrough, numerical examples,
 test outcomes, limitations, and three interview questions with sample answers.
 
+## Phase 5: replay monitoring with saved model inference
+
+Open **Process Monitoring** in the sidebar. The page replays the Overview's
+synthetic sensor/Raman observations, using saved glucose and lactate pipelines.
+It contains no physical equipment connection or control action.
+
+1. Choose a batch and inspect the saved model selections. Default separate demo
+   models have been prepared locally. **Prepare / reuse saved demo models** can
+   create matching artifacts for another Overview configuration; it is an explicit
+   training action on a different calibration seed, never part of ordinary replay.
+2. Click **Start / resume**, **Pause**, or **Advance one observation**. Change
+   observations per second while preserving replay progress. Reset clears the
+   current replay history. Navigation to another page pauses replay.
+3. Inspect direct sensor trends and separately labeled model estimates. Missing
+   inputs, implausible sensors, mismatched spectral axes, domain failures, and
+   invalid predictions create recorded gaps; simulated truth is never substituted.
+4. Edit advisory limits or the illustrative feature-domain threshold. Changing
+   the batch, mode, models, or rules starts a fresh paused context, keeping each
+   history internally consistent. No limits are presented as validated CPP limits.
+5. Enable **Inject known replay faults** and use **Historical review** to inspect
+   indices 3, 7, 10, and 12. Moving backward hides future observations and assays.
+6. Inspect delayed references: only assays whose result times have arrived are
+   shown. Historical review extends after the last observation to reveal final
+   laboratory reports without inventing new process observations.
+7. Download the revealed monitoring report with versioned predictions, quality
+   and alarm states, available references, and the replay/rule manifest.
+
+Finalized Phase 4 winner pipelines are discovered automatically. Their test record
+is not modified. The separate default demo models use calibration seed 1000045
+for replay seed 42 and are explicitly labeled **grouped CV only**. Default
+artifacts live under ignored `.pat_state/monitoring/models/`; missing models
+still allow sensor-only replay. No dependency changes were needed for Phase 5.
+
+Read the [Phase 5 learning guide](docs/phase_5_learning_guide.md) for replay and
+inference mathematics, source/time separation, code explanations, limitations,
+verification outcomes, and three interview questions with sample answers.
+
 ## Project layout
 
 ```text
 app.py                          Streamlit Overview and plotting
 src/data_generation.py          Process balances and measurement simulation
 src/app_data.py                 Cached synthetic dataset shared across pages
+src/navigation.py               Replay pause behavior independent of cached data imports
 src/data_integration.py         CSV preparation, quality flags, and time matching
 src/preprocessing.py            Baseline, SNV, MSC, SG, region selection
 src/spectral_transformations.py Derivatives, FFT, inverse FFT, and wavelets
@@ -177,9 +215,13 @@ src/modeling_data.py            Assay-labeled common cohort and batch partitions
 src/modeling.py                 Grouped CV search, four models, and final scoring
 src/validation.py               Regression metrics and fold audit records
 src/modeling_storage.py         Saved studies, one-time holdout gate, model/report export
+src/model_registry.py           Trusted saved model discovery and separate demo calibration
+src/monitoring.py               Input/domain validation, saved inference, advisory alarms
+src/replay.py                   Replay clock, revealed history, causal assay views, reports
 pages/2_Data_Integration.py     Integration, quality, and availability dashboard
 pages/3_Spectral_Analytics.py    Interactive spectral analysis laboratory
 pages/4_Predictive_Modeling.py   Comparative soft-sensor modeling laboratory
+pages/5_Process_Monitoring.py    Replay controls, real model estimates, and advisory alerts
 tests/test_data_generation.py   Scientific and data identity checks
 tests/test_app.py               Streamlit startup and interaction checks
 tests/test_data_integration.py  Time, provenance, missingness, and quality checks
@@ -192,10 +234,15 @@ tests/test_feature_engineering.py
 tests/test_modeling.py          Metrics, label provenance, CV isolation, and all models
 tests/test_modeling_storage.py  Evaluation gate and fitted-artifact inference
 tests/test_modeling_app.py      Training actions, persistence, sealing, and navigation
+tests/test_model_registry.py    Model discovery, calibration isolation, artifact reuse
+tests/test_monitoring.py        Alarm boundaries, input/domain checks, true inference
+tests/test_replay.py            Clock transitions, source identity, causal histories
+tests/test_monitoring_app.py    Controls, fault gaps, model preparation, navigation
 docs/phase_1_learning_guide.md   Equations, code walkthrough, interview practice
 docs/phase_2_learning_guide.md   Integration rules, exercises, interview practice
 docs/phase_3_learning_guide.md   Spectral methods, regression checks, interview practice
 docs/phase_4_learning_guide.md   Model comparison, interpretation, tests, interview practice
+docs/phase_5_learning_guide.md   Replay, inference, reliability, tests, interview practice
 docs/synthetic_data_assumptions.md
 .streamlit/config.toml          Theme and disabled usage telemetry
 requirements.in                Direct dependencies
@@ -205,9 +252,10 @@ requirements.txt               Pinned complete environment
 The user-authored master plan and existing Git configuration are preserved.
 Future modules and pages will be added when their phase is approved; there are
 no empty placeholder implementations. Data is generated in memory and cached by
-configuration. No external data source, credentials, or model artifact is needed.
-Optional CSV uploads remain in the local Streamlit session. No dependency
-changes were needed for Phase 2.
+configuration. No external data source or credentials are needed. Soft-sensor
+monitoring loads local saved pipelines; its explicit demo preparation action
+can supply them. Optional CSV uploads remain in the local Streamlit session.
+No dependency changes were needed for Phases 2 or 5.
 
 ## Run checks
 
@@ -229,7 +277,11 @@ Phase 4 adds feature consistency, sparse assay provenance, common cohorts,
 whole-batch CV, unchanged fitting when test labels change, all four model types,
 noise sensitivity, persistent split/evaluation guards, trusted model inference,
 report contents, explicit training actions, and cross-phase regressions.
+Phase 5 adds deterministic replay timing, start/pause/resume/step/reset, inclusive
+alarm boundaries, invalid/negative prediction gaps, training-statistic domain
+checks, causal assay visibility, saved-model reuse without fitting, model/source
+identity, revealed-only exports, and navigation pause behavior.
 
-Streaming replay, live equipment connections, calibrated multivariate monitoring
-limits, and deployment are not implemented yet. **Development stops after Phase 4
-until you explicitly request Phase 5.**
+Live equipment connections, calibrated PCA monitoring limits, model drift
+validation, and deployment are not implemented yet. **Development stops after
+Phase 5 until you explicitly request Phase 6.**

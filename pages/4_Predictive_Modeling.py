@@ -11,6 +11,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.app_data import load_dataset
+from src.navigation import pause_monitoring_on_navigation
 from src.data_generation import SimulationConfig
 from src.data_integration import integrate_sources, sources_from_dataset
 from src.feature_engineering import FEATURE_SETS
@@ -53,6 +54,7 @@ def residual_plot(rows, title):
 
 def main():
     st.set_page_config(page_title="Vaccine PAT | Predictive Modeling", page_icon="📈", layout="wide")
+    pause_monitoring_on_navigation()
     st.caption("VACCINE PAT INTELLIGENCE PLATFORM · PHASE 4")
     st.title("Compare soft sensors. Test independent batches.")
     st.write("Train from offline glucose or lactate assays, compare fixed spectral feature recipes, and preserve whole-batch separation.")
@@ -259,7 +261,7 @@ def main():
 
 References remain sparse offline assays. No IDs, timestamps, latent glucose/lactate, or batch scenario labels enter predictors. Common-row filtering avoids giving different feature sets different evaluation samples. Projected PCA exploration in Phase 3 is separate from predictive validation here.
 
-The local evaluation record discourages repeated test-driven tuning; it is not an access-control system and cannot guarantee that data was never viewed elsewhere. Use a genuinely new cohort for further final-validation claims. Read `docs/phase_4_learning_guide.md` for the architecture, equations, examples, limitations, tests, and three interview questions with sample answers. Phase 5 requires your explicit instruction.
+The local evaluation record discourages repeated test-driven tuning; it is not an access-control system and cannot guarantee that data was never viewed elsewhere. Use a genuinely new cohort for further final-validation claims. Read `docs/phase_4_learning_guide.md` for the architecture, equations, examples, limitations, tests, and three interview questions with sample answers. Process Monitoring can replay finalized saved pipelines or separately prepared demo calibration models without modifying this cohort's test record.
 """)
         st.markdown("Methods: [PLSRegression](https://scikit-learn.org/stable/modules/generated/sklearn.cross_decomposition.PLSRegression.html) · [GroupKFold](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GroupKFold.html) · [XGBoost sklearn interface](https://xgboost.readthedocs.io/en/stable/python/sklearn_estimator.html)")
 

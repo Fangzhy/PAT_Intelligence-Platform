@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.app_data import load_dataset
+from src.navigation import pause_monitoring_on_navigation
 from src.data_generation import SimulationConfig
 
 
@@ -39,10 +40,11 @@ def trend_chart(frame: pd.DataFrame, column: str, label: str, color_map: dict):
 
 def main() -> None:
     st.set_page_config(page_title="Vaccine PAT | Overview", page_icon="🧪", layout="wide")
+    pause_monitoring_on_navigation()
     st.caption("VACCINE PAT INTELLIGENCE PLATFORM · OVERVIEW")
     st.title("Explore the process. Understand the measurements.")
     st.write("A synthetic recombinant protein fed-batch bioreactor, from process sensors to Raman spectra and laboratory references.")
-    st.info("Educational synthetic data · No manufacturing validation · Overview concentrations are simulation truth or synthetic assays. Separately labeled trained-model estimates are available on Predictive Modeling.")
+    st.info("Educational synthetic data · No manufacturing validation · Overview concentrations are simulation truth or synthetic assays. Separately labeled trained-model estimates are available on Predictive Modeling and Process Monitoring.")
 
     saved_config = st.session_state.get("simulation_config", SimulationConfig())
     with st.sidebar:

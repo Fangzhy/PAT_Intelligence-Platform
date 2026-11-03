@@ -11,6 +11,7 @@ from scipy.signal import find_peaks
 import streamlit as st
 
 from src.app_data import load_dataset
+from src.navigation import pause_monitoring_on_navigation
 from src.chemometrics import fit_spectral_pca, project_spectral_pca
 from src.data_generation import SimulationConfig
 from src.preprocessing import (
@@ -95,6 +96,7 @@ def pca_analysis(values, axis, reference_mask, n_components, autoscale, baseline
 
 def main():
     st.set_page_config(page_title="Vaccine PAT | Spectral Analytics", page_icon="🔬", layout="wide")
+    pause_monitoring_on_navigation()
     st.caption("VACCINE PAT INTELLIGENCE PLATFORM · PHASE 3")
     st.title("Explore spectra. Understand each transformation.")
     st.write("A Raman laboratory for preprocessing, derivatives, Fourier analysis, wavelets, and reference-fitted PCA.")
