@@ -2,7 +2,7 @@
 
 A learning-oriented Python application for exploring a synthetic recombinant
 protein fed-batch bioreactor and, in future phases, developing PAT analytics.
-**Phase 1 only is implemented.** Every measurement is synthetic. This is an
+**Phases 1 and 2 are implemented.** The default measurements are synthetic. This is an
 educational portfolio demonstration, not a manufacturing-validated system.
 
 ## Start locally in VS Code
@@ -67,16 +67,48 @@ document units, coefficients, noise, and scientific limits.
 2. Trace one mass-balance step in `advance_culture()`.
 3. Understand NumPy arrays, pandas tables, seeds, and Gaussian peaks.
 4. Explore the dashboard and explain the source of each displayed value.
-5. Review the tests and interview questions before approving Phase 2.
+5. Continue with Data Integration after understanding the measurement sources.
+
+## Phase 2: integrate sources and inspect quality
+
+Open **Data Integration** from the Streamlit sidebar. The Overview's most recent
+simulation settings are shared across both pages; direct entry uses the defaults.
+
+1. Keep **Synthetic dataset** selected. The default dataset aligns 870 spectra
+   with 870 sensor rows and pairs 42 laboratory samples at collection time.
+2. Enable **Add known data-quality issues**. Review missing cells, duplicate
+   IDs/timestamps, an invalid timestamp, impossible DO, and unmatched rows.
+   This creates a separate faulty copy and preserves the Overview dataset.
+3. Compare a **5 minute** and **30 minute** sensor tolerance with the faulty copy.
+   Its Raman timestamps are shifted by +10 minutes, making tolerance meaningful.
+4. Move **Review elapsed time** from 0 h to 6 h. Initial laboratory results appear
+   only after their result timestamps. Retrospective label pairs still describe
+   the original collection time.
+5. Under **Raw & processed sources**, download the source CSV ZIP. Extract it,
+   select **Upload CSV sources**, and upload `sensors.csv`, `raman.csv`,
+   `assays.csv`, and `batches.csv` to reproduce the workflow.
+6. Download the integration report ZIP, which includes raw inputs, processed
+   copies, aligned data, reference pairs, quality tables, and a rule manifest.
+
+Read the [Phase 2 learning guide](docs/phase_2_learning_guide.md) for schemas,
+equations, a numerical example, source eligibility rules, function explanations,
+limitations, exercises, and three interview questions with sample answers.
+Use only synthetic or appropriately licensed public data for imports.
 
 ## Project layout
 
 ```text
 app.py                          Streamlit Overview and plotting
 src/data_generation.py          Process balances and measurement simulation
+src/app_data.py                 Cached synthetic dataset shared across pages
+src/data_integration.py         CSV preparation, quality flags, and time matching
+pages/2_Data_Integration.py     Integration, quality, and availability dashboard
 tests/test_data_generation.py   Scientific and data identity checks
 tests/test_app.py               Streamlit startup and interaction checks
+tests/test_data_integration.py  Time, provenance, missingness, and quality checks
+tests/test_integration_app.py   Navigation and integration page interactions
 docs/phase_1_learning_guide.md   Equations, code walkthrough, interview practice
+docs/phase_2_learning_guide.md   Integration rules, exercises, interview practice
 docs/synthetic_data_assumptions.md
 .streamlit/config.toml          Theme and disabled usage telemetry
 requirements.in                Direct dependencies
@@ -87,6 +119,8 @@ The user-authored master plan and existing Git configuration are preserved.
 Future modules and pages will be added when their phase is approved; there are
 no empty placeholder implementations. Data is generated in memory and cached by
 configuration. No external data source, credentials, or model artifact is needed.
+Optional CSV uploads remain in the local Streamlit session. No dependency
+changes were needed for Phase 2.
 
 ## Run checks
 
@@ -97,8 +131,10 @@ configuration. No external data source, credentials, or model artifact is needed
 Checks cover mass-balance invariants, glucose depletion, invalid inputs,
 reproducibility, batch identity, UTC timestamps, uniform spectral spacing, assay
 delays, spectral response to glucose, the designed disturbance, and Streamlit
-startup and interactions.
+startup and interactions. Phase 2 adds batch-boundary and timestamp-tolerance
+tests, delayed-reference availability, duplicate quarantine, missing-value
+preservation, CSV round trips, report exports, and cross-page navigation.
 
-Phase 1 does not perform data integration, spectral preprocessing, model
-training, prediction, anomaly detection, or deployment. **Development stops here
-until you explicitly request Phase 2.**
+No spectral preprocessing, model training, prediction, multivariate anomaly
+detection, or deployment is implemented yet. **Development stops after Phase 2
+until you explicitly request Phase 3.**
