@@ -2,7 +2,7 @@
 
 A learning-oriented Python application for exploring a synthetic recombinant
 protein fed-batch bioreactor and, in future phases, developing PAT analytics.
-**Phases 1–5 are implemented.** The default measurements are synthetic. This is an
+**Phases 1–7 are implemented.** The default measurements are synthetic. This is an
 educational portfolio demonstration, not a manufacturing-validated system.
 
 ## Start locally in VS Code
@@ -198,6 +198,89 @@ Read the [Phase 5 learning guide](docs/phase_5_learning_guide.md) for replay and
 inference mathematics, source/time separation, code explanations, limitations,
 verification outcomes, and three interview questions with sample answers.
 
+## Phase 6: multivariate statistical process monitoring
+
+Open **Multivariate Monitoring** in the sidebar and click **Fit reference
+monitoring model**. The page uses observed temperature, pH, dissolved oxygen,
+feed flow, and agitation. No simulated concentrations or scenario labels enter
+the PCA matrix. It provides:
+
+- Hotelling's T², SPE/Q, and a maximum statistic-to-limit ratio over elapsed time.
+- Nominal/disturbed batch comparison, exceedance fractions, invalid input counts,
+  and designed disturbance annotations separate from detector flags.
+- PCA scores, loadings, explained variance, and additive SPE residual contributions.
+- Editable nominal reference batches, one to four components, and per-chart
+  empirical quantiles; fitting occurs only on the explicit calibration action.
+- A downloadable historical report containing all observations, batch summaries,
+  reference row audit, loadings, fitted parameters, limits, and assumptions.
+
+The default six-batch split fits scaling/PCA on **B001–B003**, estimates limits
+from separate nominal **B005**, and evaluates untouched **B004 and B006**.
+The split is by whole batch. Chart controls never refit the model. Calibration
+survives page navigation within the session; changing the Overview simulation
+requires a new fit. Navigating here also pauses Phase 5 replay.
+
+Limits are empirical observation-level quantiles, not validated false-alarm
+probabilities. This initial PCA pools time-varying batch trajectories; temporal
+correlation, few independent batches, and repeated use of two charts matter.
+With the default seed 42 and 144 h duration, B004 flags at 58/145 observations,
+including 47/51 after its designed disturbance onset. Nominal B006 also flags
+at 21/145 observations, and B004's first flag precedes the disturbance. These
+results illustrate both detection and nuisance alarms; they do not establish a
+validated detector or an accurate disturbance-onset estimate.
+
+Missing/nonfinite or implausible sensor values remain unscorable with gaps and
+unknown alarm states. The original data is preserved without interpolation.
+This page performs historical comparison; the Phase 5 replay export still
+contains only revealed observations. No dependencies were added for Phase 6.
+
+Read the [Phase 6 learning guide](docs/phase_6_learning_guide.md) for the
+mathematics, a worked example, code walkthrough, test outcomes, limitations,
+and three interview questions with sample answers.
+
+## Phase 7: model reliability and lifecycle validation
+
+Open **Model Reliability** in the sidebar. Select glucose or lactate and either
+prepare a separate frozen demo or read a matching saved Phase 4 study. The page
+adds:
+
+- Recorded training, grouped CV, and independent-batch RMSEP/MAE/R²/bias, with
+  batch-level test results and the original CV-selected winner.
+- Saved-pipeline historical review with a time cutoff, exact sample/time assay
+  pairing after result availability, residual limits, and rolling bias alerts.
+- Descriptive sensor, Raman level/baseline-proxy, and prediction-distribution
+  shift screens against original training references.
+- Missing-input, model-domain, spectral-axis, and invalid-prediction flags with
+  unavailable estimates preserved as gaps.
+- Controlled copies illustrating pH offset, Raman baseline shift, assay bias,
+  and invalid/out-of-domain inputs; raw data and frozen results are preserved.
+- A ZIP report separating previously frozen validation evidence from the
+  revealed-only operational review, including source, model version, rules,
+  timestamps, reference coverage, and quality flags.
+
+For a first walkthrough, click **Prepare / reuse frozen reliability demo**, then
+**Review through latest assay**. Move **Review elapsed time (h)** backward and
+confirm future reference results disappear. Changing residual/drift limits
+does not retrain or reopen evaluation. Source/batch/fault/domain changes create
+a fresh review context. Navigating here pauses Phase 5 replay.
+
+The demo uses a separate calibration seed (Overview seed + 2000007), at least
+eight batches, raw-Raman PLS with training-only grouped CV, and a saved one-time
+independent test on the final two batches. Target-specific local records live
+under ignored `.pat_state/reliability/`; preparation is explicit and completed
+records are reused. Existing Phase 4 studies are read without claiming an
+unfinished holdout. Finalize those explicitly on Predictive Modeling first.
+
+Shift is measured with empirical Wasserstein distance divided by training SD.
+Its editable threshold is descriptive, not a calibrated probability. Early
+batch windows, changing process phase, and prediction rejection can alter the
+distribution. A shift flag does not prove sensor drift or model degradation;
+assay bias can also produce large prediction-minus-reference errors.
+
+Read the [Phase 7 learning guide](docs/phase_7_learning_guide.md) for equations,
+code examples, default numerical results, limitations, tests, and three
+interview questions with sample answers. No dependencies were added.
+
 ## Project layout
 
 ```text
@@ -218,10 +301,15 @@ src/modeling_storage.py         Saved studies, one-time holdout gate, model/repo
 src/model_registry.py           Trusted saved model discovery and separate demo calibration
 src/monitoring.py               Input/domain validation, saved inference, advisory alarms
 src/replay.py                   Replay clock, revealed history, causal assay views, reports
+src/multivariate_monitoring.py   Reference-fitted PCA, separate empirical limits, scores, audit/report
+src/reliability.py              Frozen metrics, causal assay residuals, drift, and reports
+src/reliability_storage.py      Read-only evidence loading and isolated explicit demo preparation
 pages/2_Data_Integration.py     Integration, quality, and availability dashboard
 pages/3_Spectral_Analytics.py    Interactive spectral analysis laboratory
 pages/4_Predictive_Modeling.py   Comparative soft-sensor modeling laboratory
 pages/5_Process_Monitoring.py    Replay controls, real model estimates, and advisory alerts
+pages/6_Multivariate_Monitoring.py PCA control charts, batch comparison, scores, and residuals
+pages/7_Model_Reliability.py     Frozen evidence, review clock, residuals, drift, and provenance
 tests/test_data_generation.py   Scientific and data identity checks
 tests/test_app.py               Streamlit startup and interaction checks
 tests/test_data_integration.py  Time, provenance, missingness, and quality checks
@@ -238,11 +326,18 @@ tests/test_model_registry.py    Model discovery, calibration isolation, artifact
 tests/test_monitoring.py        Alarm boundaries, input/domain checks, true inference
 tests/test_replay.py            Clock transitions, source identity, causal histories
 tests/test_monitoring_app.py    Controls, fault gaps, model preparation, navigation
+tests/test_multivariate_monitoring.py T²/Q known answers, isolation, disturbance, quality, reports
+tests/test_multivariate_app.py  Calibration actions, chart units, configuration, navigation
+tests/test_reliability.py       Known residual/drift answers, causality, gaps, reference isolation
+tests/test_reliability_storage.py Frozen reuse, holdout isolation, separate targets, sealed state
+tests/test_reliability_app.py   Explicit preparation, time controls, saved studies, navigation
 docs/phase_1_learning_guide.md   Equations, code walkthrough, interview practice
 docs/phase_2_learning_guide.md   Integration rules, exercises, interview practice
 docs/phase_3_learning_guide.md   Spectral methods, regression checks, interview practice
 docs/phase_4_learning_guide.md   Model comparison, interpretation, tests, interview practice
 docs/phase_5_learning_guide.md   Replay, inference, reliability, tests, interview practice
+docs/phase_6_learning_guide.md   PCA monitoring, empirical limits, false alarms, interview practice
+docs/phase_7_learning_guide.md   Reliability evidence, drift, delayed residuals, interview practice
 docs/synthetic_data_assumptions.md
 .streamlit/config.toml          Theme and disabled usage telemetry
 requirements.in                Direct dependencies
@@ -255,7 +350,7 @@ no empty placeholder implementations. Data is generated in memory and cached by
 configuration. No external data source or credentials are needed. Soft-sensor
 monitoring loads local saved pipelines; its explicit demo preparation action
 can supply them. Optional CSV uploads remain in the local Streamlit session.
-No dependency changes were needed for Phases 2 or 5.
+No dependency changes were needed for Phases 2, 5, 6, or 7.
 
 ## Run checks
 
@@ -281,7 +376,15 @@ Phase 5 adds deterministic replay timing, start/pause/resume/step/reset, inclusi
 alarm boundaries, invalid/negative prediction gaps, training-statistic domain
 checks, causal assay visibility, saved-model reuse without fitting, model/source
 identity, revealed-only exports, and navigation pause behavior.
+Phase 6 adds analytical T²/Q calculations, reference-only scale/PCA fitting,
+separate nominal limit calibration, complete batch partition guards, invalid
+input gaps, reproducible reports, disturbance detection, correct chart units,
+explicit fitting, and navigation/configuration regression checks.
+Phase 7 adds frozen evidence loading, separate reproducible demo studies,
+sample/result-time residual causality, rolling bias, known Wasserstein distances,
+constant/insufficient-data screens, training-reference isolation, guarded saved
+inference, report scope, source/axis checks, and earlier-phase navigation.
 
-Live equipment connections, calibrated PCA monitoring limits, model drift
-validation, and deployment are not implemented yet. **Development stops after
-Phase 5 until you explicitly request Phase 6.**
+Live equipment connections, manufacturing validation, validated false-alarm
+rates, and Phase 8 deployment remain future work. **Development stops after
+Phase 7 until you explicitly request Phase 8.**

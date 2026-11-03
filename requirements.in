@@ -1,4 +1,4 @@
-# Phases 1–5. requirements.txt pins the complete resolved environment.
+# Phases 1–7. requirements.txt pins the complete resolved environment.
 numpy>=2.2,<3
 pandas>=2.2,<3
 streamlit>=1.50,<2
