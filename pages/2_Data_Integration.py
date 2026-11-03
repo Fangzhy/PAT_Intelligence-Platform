@@ -88,6 +88,7 @@ def main():
         st.error(f"Integration needs corrected inputs: {error}")
         return
 
+    st.session_state["integration_result"] = result
     integrated, pairs = result.integrated, result.reference_pairs
     metrics = st.columns(4)
     metrics[0].metric("Eligible spectra", len(integrated))
@@ -170,7 +171,7 @@ def main():
 3. At review time 0 h, no laboratory results are available. Move to 6 h to reveal the initial sample's results.
 4. Download source CSVs, then upload all four on this page to reproduce the workflow.
 
-Read `docs/phase_2_learning_guide.md` for the code walkthrough, assumptions, tests, and three interview questions with sample answers. Phase 3 requires your explicit instruction.
+Read `docs/phase_2_learning_guide.md` for the code walkthrough, assumptions, tests, and three interview questions with sample answers. Spectral Analytics can use the latest successful prepared Raman snapshot from this page.
 """)
         st.markdown("Methods: [pandas time matching](https://pandas.pydata.org/docs/reference/api/pandas.merge_asof.html) · [NIST potential-outlier labeling](https://www.itl.nist.gov/div898/handbook/eda/section3/eda35h.htm)")
 
