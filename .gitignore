@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# learning document
+docs
+
 # local development file
 Vaccine_PAT_Intelligence_Master_Development_Plan.md
 

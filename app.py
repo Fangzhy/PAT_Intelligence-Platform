@@ -5,7 +5,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.data_generation import SimulationConfig, SyntheticDataset, generate_dataset
+from src.app_data import load_dataset
+from src.data_generation import SimulationConfig
 
 
 SENSOR_VARIABLES = {
@@ -24,12 +25,6 @@ TRUTH_VARIABLES = {
 COLORS = ["#0F766E", "#2563EB", "#D97706", "#C2415C", "#7C3AED", "#4D7C0F", "#0369A1", "#A16207", "#BE185D", "#475569"]
 
 
-@st.cache_data(show_spinner="Simulating independent bioreactor batches…", max_entries=4)
-def load_dataset(config: SimulationConfig) -> SyntheticDataset:
-    """Cache by configuration so changing a chart does not repeat the simulation."""
-    return generate_dataset(config)
-
-
 def trend_chart(frame: pd.DataFrame, column: str, label: str, color_map: dict):
     """Use elapsed time to compare batch trajectories on the same process clock."""
     figure = px.line(
@@ -43,23 +38,25 @@ def trend_chart(frame: pd.DataFrame, column: str, label: str, color_map: dict):
 
 
 def main() -> None:
-    st.set_page_config(page_title="Vaccine PAT | Phase 1", page_icon="🧪", layout="wide")
-    st.caption("VACCINE PAT INTELLIGENCE PLATFORM · PHASE 1")
+    st.set_page_config(page_title="Vaccine PAT | Overview", page_icon="🧪", layout="wide")
+    st.caption("VACCINE PAT INTELLIGENCE PLATFORM · OVERVIEW")
     st.title("Explore the process. Understand the measurements.")
     st.write("A synthetic recombinant protein fed-batch bioreactor, from process sensors to Raman spectra and laboratory references.")
     st.info("Educational synthetic data · No manufacturing validation · All concentrations shown in this phase are simulation truth or synthetic assays. No prediction model is implemented yet.")
 
+    saved_config = st.session_state.get("simulation_config", SimulationConfig())
     with st.sidebar:
         st.header("Simulation setup")
         with st.form("simulation_setup"):
-            seed = st.number_input("Random seed", min_value=0, max_value=1_000_000, value=42, step=1, key="seed")
-            n_batches = st.slider("Number of batches", min_value=2, max_value=10, value=6, key="n_batches")
-            duration = st.selectbox("Batch duration (h)", [72, 144, 240], index=1, key="duration")
-            interval = st.selectbox("Observation interval (h)", [0.5, 1.0, 2.0], index=1, key="interval")
+            seed = st.number_input("Random seed", min_value=0, max_value=1_000_000, value=saved_config.seed, step=1, key="seed")
+            n_batches = st.slider("Number of batches", min_value=2, max_value=10, value=saved_config.n_batches, key="n_batches")
+            duration = st.selectbox("Batch duration (h)", [72, 144, 240], index=[72, 144, 240].index(saved_config.duration_h), key="duration")
+            interval = st.selectbox("Observation interval (h)", [0.5, 1.0, 2.0], index=[0.5, 1.0, 2.0].index(saved_config.sample_interval_h), key="interval")
             st.form_submit_button("Generate dataset", type="primary")
         st.caption("The same configuration reproduces the same dataset. Every fourth batch includes a known synthetic disturbance.")
 
     config = SimulationConfig(n_batches=n_batches, duration_h=duration, sample_interval_h=interval, seed=seed)
+    st.session_state["simulation_config"] = config
     dataset = load_dataset(config)
     batch_ids = dataset.batches["batch_id"].tolist()
     color_map = dict(zip(batch_ids, COLORS))
@@ -129,7 +126,7 @@ def main() -> None:
             {"Source": "Model predictions", "Meaning": "Introduced after model training in later phases", "Time / key": "Not available in Phase 1"},
         ]), hide_index=True, width="stretch")
         st.subheader("Offline references: collection time versus result time")
-        st.write("An assay describes the sample at collection time. Its result becomes available 2–6 simulated hours later. Time alignment and availability rules will be developed in Phase 2.")
+        st.write("An assay describes the sample at collection time. Its result becomes available 2–6 simulated hours later. Open Data Integration in the sidebar to inspect time alignment, availability, and data quality.")
         st.dataframe(assays, hide_index=True, width="stretch")
         st.subheader("Batch design metadata")
         st.dataframe(batches, hide_index=True, width="stretch")
@@ -159,7 +156,7 @@ A **process variable** describes operation. A **CQA** is a product property rele
 2. Inspect glucose alongside the feed schedule. Explain why a concentration depends on both nutrient addition and consumption.
 3. Keep the seed fixed and regenerate; then change the seed. Separate reproducibility from between-batch variation.
 """)
-        st.caption("Full equations, a numerical example, implementation walkthrough, limitations, and interview questions are in docs/phase_1_learning_guide.md. Phase 2 requires your explicit instruction.")
+        st.caption("Full equations, a numerical example, implementation walkthrough, limitations, and interview questions are in docs/phase_1_learning_guide.md. Phase 2 is available as Data Integration in the sidebar.")
         st.markdown("Scientific context: [FDA PAT framework](https://www.fda.gov/regulatory-information/search-fda-guidance-documents/pat-framework-innovative-pharmaceutical-development-manufacturing-and-quality-assurance) · [ICH Q8(R2)](https://database.ich.org/sites/default/files/Q8_R2_Guideline.pdf)")
 
 
