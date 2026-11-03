@@ -234,13 +234,17 @@ sample pairs. In the executed default simulation, final cell density spans about
 **21.6–25.5 million cells/mL** and final glucose **12.2–15.2 g/L**. These are
 outputs of the chosen assumptions, not experimentally verified process ranges.
 
-### `app.py`: reruns and caching
+### `pages/1_Overview.py`: reruns and caching
 
 Streamlit executes the script when you interact with a widget. A form groups
 simulation settings until **Generate dataset** is clicked. `@st.cache_data`
 stores up to four configurations so chart selection does not rerun the solver.
 Plotly supplies hover details and chart navigation. Dashboard filters do not
 overwrite source measurements.
+
+The original Overview code now lives in `pages/1_Overview.py`. Start the app
+with the same `streamlit run app.py` command: `app.py` registers grouped pages
+and runs the selected screen. Dataset caching remains in `src/app_data.py`.
 
 ## 5. Try the dashboard and interpret the results
 

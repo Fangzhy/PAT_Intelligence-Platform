@@ -145,7 +145,7 @@ def test_custom_reference_settings_survive_navigation():
     app.button(key="mspc_fit").click().run()
     assert not app.exception
     model_id = app.session_state["mspc_model"].model_id
-    app.switch_page("app.py").run()
+    app.switch_page("pages/1_Overview.py").run()
     app.switch_page(PAGE).run()
     assert not app.exception
     assert app.session_state["mspc_model"].model_id == model_id

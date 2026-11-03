@@ -68,6 +68,7 @@ def test_pages_start_with_legacy_cached_app_data_missing_navigation_helper(monke
         "pages/4_Predictive_Modeling.py",
         "pages/6_Multivariate_Monitoring.py",
         "pages/7_Model_Reliability.py",
+        "pages/9_Test_Acquisition.py",
     ):
         app.switch_page(page).run()
         assert not app.exception

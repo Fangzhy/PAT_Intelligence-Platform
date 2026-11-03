@@ -24,7 +24,7 @@ def test_second_page_is_reachable_from_overview_and_preserves_simulation_setting
     assert app.metric[0].value == "219"
     assert app.metric[1].value == "219"
     assert app.metric[2].value == "12"
-    app.switch_page("app.py").run()
+    app.switch_page("pages/1_Overview.py").run()
     assert not app.exception
     assert app.number_input(key="seed").value == 17
     assert app.slider(key="n_batches").value == 3

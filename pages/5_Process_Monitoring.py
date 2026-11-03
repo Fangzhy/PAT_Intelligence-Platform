@@ -151,6 +151,9 @@ def render_monitor(batch, models, settings, mode, review_elapsed, context):
 
 def main():
     st.set_page_config(page_title="Vaccine PAT | Process Monitoring", page_icon="⏱️", layout="wide")
+    acquisition = st.session_state.get("acquisition_session")
+    if acquisition is not None:
+        acquisition.running = False
     st.caption("VACCINE PAT INTELLIGENCE PLATFORM · PHASE 5")
     st.title("Replay the process. Monitor real model estimates.")
     st.write("Synthetic time-ordered replay with direct sensors, saved glucose/lactate pipelines, input validation, and advisory monitoring limits.")
