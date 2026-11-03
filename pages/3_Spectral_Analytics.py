@@ -11,6 +11,7 @@ from scipy.signal import find_peaks
 import streamlit as st
 
 from src.app_data import load_dataset
+from src.navigation import pause_monitoring_on_navigation
 from src.chemometrics import fit_spectral_pca, project_spectral_pca
 from src.data_generation import SimulationConfig
 from src.preprocessing import (
@@ -95,6 +96,7 @@ def pca_analysis(values, axis, reference_mask, n_components, autoscale, baseline
 
 def main():
     st.set_page_config(page_title="Vaccine PAT | Spectral Analytics", page_icon="🔬", layout="wide")
+    pause_monitoring_on_navigation()
     st.caption("VACCINE PAT INTELLIGENCE PLATFORM · PHASE 3")
     st.title("Explore spectra. Understand each transformation.")
     st.write("A Raman laboratory for preprocessing, derivatives, Fourier analysis, wavelets, and reference-fitted PCA.")
@@ -356,7 +358,7 @@ def main():
 4. Set the wavelet threshold multiplier to 0, then increase it and inspect weak peaks.
 5. Fit PCA with B001–B003 as references and project B004–B006; change scaling and inspect the loadings.
 
-Read `docs/phase_3_learning_guide.md` for numerical examples, code walkthrough, assumptions, regression checks, and three interview questions with sample answers. Phase 4 requires your explicit instruction.
+Read `docs/phase_3_learning_guide.md` for numerical examples, code walkthrough, assumptions, regression checks, and three interview questions with sample answers. Predictive Modeling is available in the sidebar for training-only feature comparisons and a frozen batch holdout test.
 """)
         st.markdown("Methods: [SciPy SG filter](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.savgol_filter.html) · [SciPy FFT](https://docs.scipy.org/doc/scipy/reference/fft.html) · [PyWavelets](https://pywavelets.readthedocs.io/en/stable/ref/dwt-discrete-wavelet-transform.html) · [scikit-learn leakage guidance](https://scikit-learn.org/stable/common_pitfalls.html)")
 

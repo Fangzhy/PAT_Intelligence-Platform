@@ -28,7 +28,9 @@ click==8.5.0
     #   streamlit
     #   uvicorn
 cloudpickle==3.1.2
-    # via joblib
+    # via
+    #   -c requirements.txt
+    #   joblib
 colorama==0.4.6
     # via
     #   -c requirements.txt
@@ -56,7 +58,9 @@ jinja2==3.1.6
     #   altair
     #   pydeck
 joblib==1.6.0
-    # via scikit-learn
+    # via
+    #   -c requirements.txt
+    #   scikit-learn
 jsonschema==4.26.0
     # via
     #   -c requirements.txt
@@ -85,6 +89,7 @@ numpy==2.4.6
     #   scikit-learn
     #   scipy
     #   streamlit
+    #   xgboost
 packaging==26.3
     # via
     #   -c requirements.txt
@@ -142,7 +147,9 @@ pytz==2026.6
     #   -c requirements.txt
     #   pandas
 pywavelets==1.9.0
-    # via -r requirements.in
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
 referencing==0.37.0
     # via
     #   -c requirements.txt
@@ -158,11 +165,15 @@ rpds-py==2026.9.1
     #   jsonschema
     #   referencing
 scikit-learn==1.9.1
-    # via -r requirements.in
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
 scipy==1.17.1
     # via
+    #   -c requirements.txt
     #   -r requirements.in
     #   scikit-learn
+    #   xgboost
 starlette==1.10.0
     # via
     #   -c requirements.txt
@@ -172,7 +183,9 @@ streamlit==1.66.1
     #   -c requirements.txt
     #   -r requirements.in
 threadpoolctl==3.7.0
-    # via scikit-learn
+    # via
+    #   -c requirements.txt
+    #   scikit-learn
 typing-extensions==4.16.0
     # via
     #   -c requirements.txt
@@ -202,3 +215,5 @@ websockets==17.4
     # via
     #   -c requirements.txt
     #   streamlit
+xgboost==3.2.0
+    # via -r requirements.in

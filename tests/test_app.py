@@ -46,3 +46,26 @@ def test_simulation_form_regenerates_a_different_sized_dataset():
     assert app.metric[0].value == "3"
     assert app.metric[1].value == "111"
     assert len(app.multiselect(key="batch_filter").options) == 3
+
+
+def test_pages_start_with_legacy_cached_app_data_missing_navigation_helper(monkeypatch, tmp_path):
+    """Reproduce a long-running server retaining the pre-Phase-5 module exports."""
+    import src.app_data as cached_data
+    from src.replay import MonitoringSession
+
+    monkeypatch.delattr(cached_data, "pause_monitoring_on_navigation", raising=False)
+    app = AppTest.from_file(str(APP_PATH), default_timeout=60)
+    session = MonitoringSession("legacy-module-regression")
+    session.clock.start(0, 20)
+    app.session_state["monitoring_session"] = session
+    app.session_state["modeling_state_root"] = str(tmp_path / "models")
+    app.run()
+    assert not app.exception
+    assert not app.session_state["monitoring_session"].clock.running
+    for page in (
+        "pages/2_Data_Integration.py",
+        "pages/3_Spectral_Analytics.py",
+        "pages/4_Predictive_Modeling.py",
+    ):
+        app.switch_page(page).run()
+        assert not app.exception
