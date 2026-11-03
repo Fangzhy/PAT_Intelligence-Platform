@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# local development file
+Vaccine_PAT_Intelligence_Master_Development_Plan.md
+
 # Distribution / packaging
 .Python
 build/
