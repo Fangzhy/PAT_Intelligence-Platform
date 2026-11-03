@@ -224,3 +224,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Generated local modeling studies, fitted models, and holdout audit records
+.pat_state/
