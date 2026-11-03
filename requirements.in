@@ -1,6 +1,9 @@
-# Phase 1 only. requirements.txt pins the complete resolved environment.
+# Phases 1–3. requirements.txt pins the complete resolved environment.
 numpy>=2.2,<3
 pandas>=2.2,<3
 streamlit>=1.50,<2
 plotly>=6,<7
 pytest>=8.4,<10
+scipy>=1.15,<2
+scikit-learn>=1.6,<2
+PyWavelets>=1.8,<2
