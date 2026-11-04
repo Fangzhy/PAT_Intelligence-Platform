@@ -20,6 +20,19 @@ The sidebar follows the data workflow, with Overview first and named sections:
 | Monitoring | Process Monitoring → Multivariate Monitoring → Model Reliability |
 | Lifecycle | Deployment & Reporting |
 
+Optional **Explain these results · AI or local summary** panels on Spectral
+Analytics, Predictive Modeling, Process Monitoring, Multivariate Monitoring,
+and Model Reliability explain existing aggregate evidence. They use
+your configured free OpenRouter primary, then backup, then a deterministic
+local template. Calls are explicit; ordinary rendering makes no AI request.
+See [AI setup, fallback rules, privacy, and checks](deployment/AI_EXPLANATIONS.md)
+and the local [learning guide](docs/llm_explanations_learning_guide.md).
+Use the ignored `.env` for local credentials (`.env.example` has placeholders).
+Public deployments default to template-only unless an operator enables AI.
+Process Monitoring uses an explicit **Capture visible view for explanation**
+step for replay, historical review, and acquired streams. Captures are labeled
+historical; polling never automatically sends a request to the LLM.
+
 Data Integration's source selector includes an **Open Data Acquisition** shortcut.
 Acquisition keeps its **Test mode** badge visible and sends a detached snapshot
 back to integration. Source/adapter code remains separate from the page UI.

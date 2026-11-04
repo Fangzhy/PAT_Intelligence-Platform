@@ -19,6 +19,12 @@ from src.modeling_storage import DEFAULT_STATE_ROOT
 from src.monitoring import DEFAULT_PREDICTION_LIMITS, DEFAULT_SENSOR_LIMITS, MonitoringSettings
 from src.replay import MonitoringSession, known_assays, monitoring_report_zip, replay_batch, replay_fault_example
 from src.runtime import apply_page_runtime
+from src.llm_bootstrap import refresh_legacy_llm_modules
+
+refresh_legacy_llm_modules()
+from src.llm_results import process_snapshot
+from src.llm_ui import render_captured_explanation
+from src.ui_labels import workflow_label
 
 
 SENSOR_LABELS = {
@@ -102,6 +108,7 @@ def render_monitor(batch, models, settings, mode, review_elapsed, context):
     st.caption("Replay clock advances only while running. Speed means observations per real second. Navigating to another page pauses replay; changing batch, models, mode, or monitoring rules starts a fresh paused context.")
     if history.empty:
         st.write("Start replay or advance one observation to view measurements. No concentration is synthesized before a model inference succeeds.")
+        render_captured_explanation(None, key="process", context_id=session.context_id, cutoff=cutoff)
         return
 
     latest = history.iloc[-1]
@@ -148,6 +155,9 @@ def render_monitor(batch, models, settings, mode, review_elapsed, context):
         st.caption("Only results whose reporting time is at or before the displayed clock are available. Historical review can extend past batch end to reveal the final delayed assays.")
     export_context = {**context, "cutoff_utc": str(cutoff), "mode": mode, "revealed_rows": len(history)}
     st.download_button("Download revealed monitoring report (ZIP)", monitoring_report_zip(history, assays, settings, export_context), file_name="pat_monitoring_replay.zip", mime="application/zip", key="monitor_report")
+    snapshot = process_snapshot(history, history, assays, settings, cutoff=cutoff,
+                                context={"view": session.context_id, "mode": mode})
+    render_captured_explanation(snapshot, key="process", context_id=session.context_id, cutoff=cutoff)
 
 
 def main():
@@ -156,7 +166,7 @@ def main():
     acquisition = st.session_state.get("acquisition_session")
     if acquisition is not None:
         acquisition.running = False
-    st.caption("VACCINE PAT INTELLIGENCE PLATFORM · PHASE 5")
+    st.caption("VACCINE PAT INTELLIGENCE PLATFORM")
     st.title("Monitor process measurements and model estimates.")
     st.write("Replay recorded observations or acquire a stream, check inputs, and apply saved glucose/lactate pipelines with advisory monitoring limits.")
     st.info("Educational monitoring · Advisory only · No physical equipment control · Monitored process variables are not confirmed CPPs without process-specific CQA evidence.")
@@ -194,7 +204,7 @@ def main():
     modeling_root = Path(st.session_state.get("modeling_state_root", DEFAULT_STATE_ROOT))
     monitoring_root = Path(st.session_state.get("monitoring_models_root", DEFAULT_MONITORING_MODELS))
     with st.expander("Saved models and separate demo calibration", expanded=True):
-        st.write("Select finalized Phase 4 pipelines or prepare separate demo soft sensors. Preparation is an explicit training action on another seed; ordinary replay only loads and applies saved pipelines. Demo models have grouped CV only, with no independent-test or manufacturing-validation claim.")
+        st.write("Select finalized Predictive_Modeling pipelines or prepare separate demo soft sensors. Preparation is an explicit training action on another seed; ordinary replay only loads and applies saved pipelines. Demo models have grouped CV only, with no independent-test or manufacturing-validation claim.")
         if st.button("Prepare / reuse saved demo models", key="prepare_monitor_models"):
             try:
                 with st.spinner("Preparing glucose/lactate calibration pipelines on separate data…"):
@@ -228,7 +238,7 @@ def main():
                         break
                 except (ValueError, KeyError, OSError):
                     continue
-            selected = st.selectbox(f"{target} pipeline", labels, index=labels.index(remembered) if remembered in options else labels.index(default_label), key=f"monitor_{target.lower()}_model")
+            selected = st.selectbox(f"{target} pipeline", labels, index=labels.index(remembered) if remembered in options else labels.index(default_label), format_func=workflow_label, key=f"monitor_{target.lower()}_model")
             reference = options[selected]
             chosen[target] = selected
             if reference is None:
@@ -269,7 +279,7 @@ def main():
         "faults": faults, "models": chosen, "domain_limit": domain_limit, "max_age": max_age,
         "sensor_limits": sensor_limits, "prediction_limits": prediction_limits}
     render_monitor(batch, models, settings, mode, review_elapsed, context)
-    with st.expander("Learn Phase 5"):
+    with st.expander("Information"):
         st.latex(r"\hat y_t=f_{saved}(x_t),\qquad z_j=\frac{\phi_j(x_t)-\mu_j^{train}}{s_j^{train}}")
         st.write("The saved feature transformation φ and estimator are reused without fitting. A maximum |z| above the configured threshold or a change to a training-constant feature causes a domain warning and a gap. This individual-feature screen does not detect every multivariate shift and is not a calibrated alarm probability.")
         st.write("Example: a feature with training mean 10 and SD 2 has z = 3 when observed at 16. A concentration exactly on an advisory bound is within limits; missing input is never interpreted as normal. Sample collection time and laboratory result time remain separate from actual inference time.")
@@ -280,7 +290,7 @@ def main():
 4. Move historical time backward and forward; only revealed observations and available assay results are displayed.
 5. Compare nominal and deliberately disturbed batches without calling their scenario labels model predictions.
 
-Read `docs/phase_5_learning_guide.md` for equations, code explanations, limitations, tests, and three interview questions with sample answers. Phase 6 requires your explicit instruction.
+Read `docs/phase_5_learning_guide.md` for equations, code explanations, limitations, tests, and three interview questions with sample answers. Open Multivariate_Monitoring from the sidebar to inspect joint process patterns and PCA control charts.
 """)
         st.markdown("Runtime references: [Streamlit fragments](https://docs.streamlit.io/develop/api-reference/execution-flow/st.fragment) · [Session State](https://docs.streamlit.io/develop/api-reference/caching-and-state/st.session_state) · [Training scaler statistics](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html)")
 

@@ -33,7 +33,7 @@ def load_reliability_evidence(cohort, root):
     if study is None:
         return None, None, None
     if study.target != cohort.target or tuple(cohort.X.columns) != study.input_columns:
-        raise ValueError("The saved study target/input schema differs from this cohort. Select its original Phase 4 target and source.")
+        raise ValueError("The saved study target/input schema differs from this cohort. Select its original Predictive_Modeling target and source.")
     evaluation = load_holdout(root, cohort.cohort_id)
     if evaluation is None:
         return study, None, None

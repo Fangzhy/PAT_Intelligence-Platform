@@ -182,4 +182,6 @@ def test_missing_integration_handoff_has_guidance(tmp_path):
     app = page(tmp_path)
     app.selectbox(key="reliability_source").select("Saved Phase 4 integration study").run()
     assert not app.exception
-    assert any("Run Data Integration first" in warning.value for warning in app.warning)
+    assert any("Run Data_Integration first" in warning.value for warning in app.warning)
+    assert app.selectbox(key="reliability_source").value == "Saved Phase 4 integration study"
+    assert "Saved Predictive_Modeling integration study" in app.selectbox(key="reliability_source").options

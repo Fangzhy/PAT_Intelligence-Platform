@@ -19,6 +19,7 @@ from src.monitoring import MonitoringSettings
 from src.navigation import pause_monitoring_on_navigation
 from src.reliability_storage import DEFAULT_RELIABILITY_ROOT
 from src.runtime import apply_page_runtime, public_demo
+from src.ui_labels import workflow_label
 
 
 @st.cache_resource(max_entries=8, show_spinner=False)
@@ -30,7 +31,7 @@ def main():
     st.set_page_config(page_title="Vaccine PAT | Deployment & Reporting", page_icon="📦", layout="wide")
     apply_page_runtime()
     pause_monitoring_on_navigation()
-    st.caption("VACCINE PAT INTELLIGENCE PLATFORM · PHASE 8")
+    st.caption("VACCINE PAT INTELLIGENCE PLATFORM")
     st.title("Deploy reproducible models. Keep the evidence.")
     st.info("Educational deployment · Trusted app-created pipelines · Synthetic evidence · No manufacturing validation")
     if public_demo():
@@ -40,7 +41,7 @@ def main():
     monitoring_root = Path(st.session_state.get("monitoring_models_root", DEFAULT_MONITORING_MODELS))
     reliability_root = Path(st.session_state.get("reliability_state_root", DEFAULT_RELIABILITY_ROOT))
     release_root = Path(st.session_state.get("deployment_state_root", DEFAULT_RELEASE_ROOT))
-    st.write("Select a finalized Phase 4/7 pipeline or separate CV-only demo model. Packaging copies its fitted feature/scaler/model pipeline and recorded evidence; it never evaluates a holdout or trains during routine rendering.")
+    st.write("Select a finalized Predictive_Modeling or Model_Reliability pipeline, or a separate CV-only demo model. Packaging copies its fitted feature/scaler/model pipeline and recorded evidence; it never evaluates a holdout or trains during routine rendering.")
     if st.button("Prepare / reuse deployment demo models", key="deployment_prepare"):
         try:
             with st.spinner("Preparing separate glucose/lactate demo calibration…"):
@@ -81,7 +82,7 @@ session history are not durable lifecycle records.
     labels = {f"{reference.target} · {reference.version} · {reference.source}": reference for reference in references}
     preferred = st.session_state.get("deployment_preferred_identity")
     default = next((index for index, reference in enumerate(labels.values()) if reference.identity == preferred), 0)
-    selected = st.selectbox("Trusted saved pipeline", list(labels), index=default, key="deployment_model")
+    selected = st.selectbox("Trusted saved pipeline", list(labels), index=default, format_func=workflow_label, key="deployment_model")
     reference = labels[selected]
     try:
         bundle = cached_pipeline(reference)

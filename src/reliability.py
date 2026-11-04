@@ -26,7 +26,7 @@ RELIABILITY_LIMITATIONS = (
     "Input/prediction shift does not by itself establish sensor drift, concept drift, or model degradation.",
     "Drift thresholds are illustrative effect-size screens, without calibrated alarm probabilities.",
     "Sparse assays, temporal correlation, process phase, and assay error limit interpretation.",
-    "SPE/T² monitoring is on Phase 6; these distribution screens are separate.",
+    "SPE/T² monitoring is on Multivariate_Monitoring; these distribution screens are separate.",
 )
 FAULT_SCENARIOS = (
     "Unmodified observations", "pH offset +0.10 after midpoint",

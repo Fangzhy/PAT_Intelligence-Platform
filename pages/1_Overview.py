@@ -81,7 +81,7 @@ def main() -> None:
     metrics[2].metric("Raman channels / spectrum", len(dataset.wavenumbers_cm1))
     metrics[3].metric("Offline sample pairs", len(assays))
 
-    process_tab, raman_tab, sources_tab, learn_tab = st.tabs(["Process overview", "Raman snapshot", "Data sources & assays", "Learn Phase 1"])
+    process_tab, raman_tab, sources_tab, learn_tab = st.tabs(["Process overview", "Raman snapshot", "Data sources & assays", "Information"])
 
     with process_tab:
         st.subheader("Direct sensor observations")
@@ -162,7 +162,7 @@ A **process variable** describes operation. A **CQA** is a product property rele
 2. Inspect glucose alongside the feed schedule. Explain why a concentration depends on both nutrient addition and consumption.
 3. Keep the seed fixed and regenerate; then change the seed. Separate reproducibility from between-batch variation.
 """)
-        st.caption("Full equations, a numerical example, implementation walkthrough, limitations, and interview questions are in docs/phase_1_learning_guide.md. Phase 2 is available as Data Integration in the sidebar.")
+        st.caption("Full equations, a numerical example, implementation walkthrough, limitations, and interview questions are in docs/phase_1_learning_guide.md. Open Data_Integration from the sidebar to align sources and inspect data quality.")
         st.markdown("Scientific context: [FDA PAT framework](https://www.fda.gov/regulatory-information/search-fda-guidance-documents/pat-framework-innovative-pharmaceutical-development-manufacturing-and-quality-assurance) · [ICH Q8(R2)](https://database.ich.org/sites/default/files/Q8_R2_Guideline.pdf)")
 
 

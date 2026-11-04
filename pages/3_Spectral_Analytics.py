@@ -1,5 +1,6 @@
 """Phase 3: an interactive Raman transformation and exploratory PCA laboratory."""
 
+from hashlib import sha256
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -24,6 +25,12 @@ from src.spectral_transformations import (
     frequency_band_features, laplacian_1d, reconstruct_fourier,
     reconstruct_wavelet, wavelet_decompose, wavelet_denoise, wavelet_features,
 )
+from src.llm_bootstrap import refresh_legacy_llm_modules
+
+refresh_legacy_llm_modules()
+from src.llm_results import spectral_snapshot
+from src.llm_ui import render_explanation
+from src.ui_labels import workflow_label
 
 
 RAMAN_LABEL = "Raman shift (cm⁻¹)"
@@ -97,13 +104,13 @@ def pca_analysis(values, axis, reference_mask, n_components, autoscale, baseline
 def main():
     st.set_page_config(page_title="Vaccine PAT | Spectral Analytics", page_icon="🔬", layout="wide")
     pause_monitoring_on_navigation()
-    st.caption("VACCINE PAT INTELLIGENCE PLATFORM · PHASE 3")
+    st.caption("VACCINE PAT INTELLIGENCE PLATFORM")
     st.title("Explore spectra. Understand each transformation.")
     st.write("A Raman laboratory for preprocessing, derivatives, Fourier analysis, wavelets, and reference-fitted PCA.")
     st.info("Educational exploration · No concentration predictor or validated alarm limits · Transformations can remove useful chemical information as well as nuisance variation.")
     with st.sidebar:
         st.header("Spectral data")
-        source = st.radio("Raman source", ["Synthetic dataset", "Latest Phase 2 prepared Raman"], key="spectral_source")
+        source = st.radio("Raman source", ["Synthetic dataset", "Latest Phase 2 prepared Raman"], format_func=workflow_label, key="spectral_source")
     if source == "Synthetic dataset":
         config = st.session_state.get("simulation_config", SimulationConfig())
         collection = raman_from_simulation(load_dataset(config))
@@ -118,13 +125,13 @@ def main():
         except ValueError as error:
             st.error(str(error))
             return
-        st.caption("Using the latest successful Phase 2 snapshot and its batch scope. Sensor/assay values are not spectral features.")
+        st.caption("Using the latest successful Data_Integration snapshot and its batch scope. Sensor/assay values are not spectral features.")
     if not collection.excluded.empty:
         st.warning(f"Excluded {len(collection.excluded)} ineligible or incomplete Raman rows. No intensities were interpolated or imputed.")
         with st.expander("Excluded Raman source rows"):
             st.dataframe(collection.excluded, hide_index=True, width="stretch")
     if len(collection.intensities) == 0:
-        st.warning("No eligible, complete Raman spectra remain. Review the Phase 2 report.")
+        st.warning("No eligible, complete Raman spectra remain. Review the Data_Integration report.")
         return
     try:
         full_axis = validate_axis(collection.wavenumbers_cm1, collection.intensities.shape[1], uniform=True)
@@ -190,7 +197,7 @@ def main():
     sample = metadata.iloc[sample_index]
     st.caption(f"Selected spectrum: {sample['sample_id']} · {sample['elapsed_time_h']:g} h · {sample['measurement_timestamp']}")
     raw_tab, compare_tab, fft_tab, wavelet_tab, pca_tab, learn_tab = st.tabs([
-        "Raw spectra", "Compare transformations", "Fourier laboratory", "Wavelet laboratory", "PCA exploration", "Learn Phase 3",
+        "Raw spectra", "Compare transformations", "Fourier laboratory", "Wavelet laboratory", "PCA exploration", "Information",
     ])
 
     with raw_tab:
@@ -295,6 +302,7 @@ def main():
             st.dataframe(wavelet_table, hide_index=True, width="stretch")
             st.download_button("Download wavelet summaries (CSV)", wavelet_table.to_csv(index=False).encode("utf-8"), file_name="raman_wavelets.csv", mime="text/csv")
 
+    pca_variance, pca_reconstruction = None, None
     with pca_tab:
         st.subheader("Fit reference batches; project the remaining batches")
         st.caption("This is exploratory PCA. Projected batches are not an independent predictive test, and largest reconstruction residuals are review candidates without calibrated alarm limits.")
@@ -318,6 +326,7 @@ def main():
                 st.warning(f"PCA configuration needs review: {error}")
             else:
                 pca = pipeline.named_steps["pca"]
+                pca_variance, pca_reconstruction = pca.explained_variance_ratio_, residuals
                 score_table = metadata.copy()
                 score_table["role"] = np.where(reference_mask, "Reference", "Projected exploration")
                 for index in range(scores.shape[1]):
@@ -361,6 +370,19 @@ def main():
 Read `docs/phase_3_learning_guide.md` for numerical examples, code walkthrough, assumptions, regression checks, and three interview questions with sample answers. Predictive Modeling is available in the sidebar for training-only feature comparisons and a frozen batch holdout test.
 """)
         st.markdown("Methods: [SciPy SG filter](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.savgol_filter.html) · [SciPy FFT](https://docs.scipy.org/doc/scipy/reference/fft.html) · [PyWavelets](https://pywavelets.readthedocs.io/en/stable/ref/dwt-discrete-wavelet-transform.html) · [scikit-learn leakage guidance](https://scikit-learn.org/stable/common_pitfalls.html)")
+    render_explanation(spectral_snapshot(axis, signal, baseline, smoothed, features,
+        selected_count=len(values), reference_count=int(reference_mask.sum()), peak_count=len(peaks),
+        settings={"window_length": window_length, "smoothness": smoothness, "asymmetry": asymmetry,
+                  "prominence": prominence, "fft_window": fft_window, "fft_detrend": fft_detrend,
+                  "band": band, "wavelet": wavelet, "wavelet_level": level, "wavelet_threshold": threshold,
+                  "threshold_scale": threshold_scale, "pca_components": components, "pca_scatter": scatter,
+                  "pca_baseline": pca_baseline, "pca_smoothing": pca_smoothing, "pca_derivative": derivative,
+                  "pca_autoscale": autoscale, "comparisons": choices,
+                  "loading": st.session_state.get("pca_loading"), "highlight": st.session_state.get("pca_candidates")},
+        pca_variance=pca_variance, reconstruction_rmse=pca_reconstruction,
+        context={"source": source, "batches": selected, "references": references, "sample": str(sample.sample_id),
+                 "data": sha256(values.tobytes()).hexdigest()},
+        source_kind="synthetic" if source == "Synthetic dataset" else "prepared_sources"), key="spectral")
 
 
 if __name__ == "__main__":

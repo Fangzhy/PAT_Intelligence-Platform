@@ -29,6 +29,12 @@ from src.reliability_storage import (
     reliability_demo_config,
 )
 from src.replay import replay_batch
+from src.llm_bootstrap import refresh_legacy_llm_modules
+
+refresh_legacy_llm_modules()
+from src.llm_results import modeling_snapshot, reliability_snapshot
+from src.llm_ui import render_explanation
+from src.ui_labels import workflow_label
 
 
 SOURCES = ["Separate reliability demo", "Saved Phase 4 synthetic study", "Saved Phase 4 integration study"]
@@ -56,14 +62,14 @@ Prepare the separate demo, review through the latest assay, then compare each co
 """)
     for limitation in RELIABILITY_LIMITATIONS:
         st.caption(limitation)
-    st.write("The equations, implementation walkthrough, examples, tests, and three interview questions are in docs/phase_7_learning_guide.md. Phase 8 deployment and interview preparation is the proposed next phase and requires your instruction.")
+    st.write("The equations, implementation walkthrough, examples, tests, and three interview questions are in docs/phase_7_learning_guide.md. Open Model_Deployment from the sidebar to inspect saved pipelines, run batch inference, and export release bundles.")
     st.markdown("References: [scikit-learn leakage guidance](https://scikit-learn.org/stable/common_pitfalls.html) · [SciPy Wasserstein distance](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.wasserstein_distance.html)")
 
 
 def main():
     st.set_page_config(page_title="Vaccine PAT | Model Reliability", page_icon="🔎", layout="wide")
     pause_monitoring_on_navigation()
-    st.caption("VACCINE PAT INTELLIGENCE PLATFORM · PHASE 7")
+    st.caption("VACCINE PAT INTELLIGENCE PLATFORM")
     st.title("Review model evidence. Follow reliability over time.")
     st.info("Synthetic historical review · Frozen independent-batch evidence · Advisory only · No manufacturing validation")
     overview = st.session_state.get("simulation_config", SimulationConfig())
@@ -75,7 +81,7 @@ def main():
         st.session_state["reliability_data_context"] = context
     with st.sidebar:
         st.header("Frozen study evidence")
-        source = st.selectbox("Study source", SOURCES, index=SOURCES.index(preferences.get("source", SOURCES[0])), key="reliability_source")
+        source = st.selectbox("Study source", SOURCES, index=SOURCES.index(preferences.get("source", SOURCES[0])), format_func=workflow_label, key="reliability_source")
         target = st.selectbox("Reliability target", list(TARGETS), index=list(TARGETS).index(preferences.get("target", "Glucose")), key="reliability_target")
     demo_root = Path(st.session_state.get("reliability_state_root", DEFAULT_RELIABILITY_ROOT))
     root = Path(st.session_state.get("modeling_state_root", DEFAULT_STATE_ROOT))
@@ -93,7 +99,7 @@ def main():
         else:
             integration = st.session_state.get("integration_result")
             if integration is None:
-                st.warning("Run Data Integration first, then select the same target/source used for the saved Phase 4 study.")
+                st.warning("Run Data_Integration first, then select the same target/source used for the saved Predictive_Modeling study.")
                 return
             cohort = modeling_dataset(integration, target)
         study, evaluation, bundle = load_reliability_evidence(cohort, root)
@@ -103,15 +109,17 @@ def main():
     st.session_state["reliability_preferences"] = {**preferences, "source": source, "target": target}
     if study is None:
         st.write("No matching saved study exists. Prepare the separate demo above, or train and finalize the matching study on Predictive Modeling. Ordinary page visits never train or reveal a holdout.")
-        with st.expander("Learn Phase 7", expanded=True):
+        with st.expander("Information", expanded=True):
             render_learning()
         return
     st.subheader("Recorded performance of the CV-selected model")
     st.dataframe(frozen_performance(study, evaluation), hide_index=True, width="stretch", key="reliability_performance")
     st.caption(f"Study {study.study_id[:12]} · Cohort {study.cohort_id[:12]} · Target {target} (g/L) · Winner {study.winner_id} · Training batches: {', '.join(study.partition.training_batches)} · Test batches: {', '.join(study.partition.holdout_batches)}")
-    st.caption("CV was used for hyperparameter/model selection and may be optimistic. The independent test is read from its completed saved record; this page does not reselect a winner or reopen Phase 4 tuning.")
+    st.caption("CV was used for hyperparameter/model selection and may be optimistic. The independent test is read from its completed saved record; this page does not reselect a winner or reopen Predictive_Modeling tuning.")
     if evaluation is None or bundle is None:
         st.warning("The study has no completed independent test. Finalize it explicitly on Predictive Modeling; this page will not claim or evaluate its holdout.")
+        render_explanation(modeling_snapshot(study, None,
+            source_kind="prepared_sources" if source == SOURCES[2] else "synthetic"), key="reliability")
         return
     batches = evaluation["batch_metrics"]
     st.dataframe(batches[batches.case_id.eq(study.winner_id)], hide_index=True, width="stretch", key="reliability_frozen_batch_metrics")
@@ -177,7 +185,7 @@ def main():
         st.warning("Available assay residuals or rolling bias exceed configured limits. Review model inputs, assay quality, and process context; this does not establish the cause.")
     if input_shift.shift_flag.fillna(False).any() or prediction_shift.shift_flag.fillna(False).any():
         st.warning("An input or prediction distribution exceeds the illustrative shift screen. Shift alone does not establish model degradation.")
-    prediction_tab, drift_tab, audit_tab, learn_tab = st.tabs(["Assay residuals & bias", "Input & prediction shift", "Provenance & report", "Learn Phase 7"])
+    prediction_tab, drift_tab, audit_tab, learn_tab = st.tabs(["Assay residuals & bias", "Input & prediction shift", "Provenance & report", "Information"])
     with prediction_tab:
         figure = go.Figure(go.Scatter(x=history.measurement_timestamp, y=history.prediction_g_l, mode="lines+markers", name="Saved-pipeline estimate", connectgaps=False))
         figure.add_trace(go.Scatter(x=residuals.collection_timestamp, y=residuals.reference_g_l, mode="markers", marker=dict(symbol="diamond", size=9), name="Assay (result now available)"))
@@ -215,6 +223,10 @@ def main():
         st.caption("The ZIP separates previously frozen historical validation evidence from review/ tables restricted to this clock. Moving time backward hides future observations and reference results in the review export. Rules, source, model version, training partition, and quality flags are recorded.")
     with learn_tab:
         render_learning()
+    render_explanation(reliability_snapshot(study, evaluation, history, residuals, metrics,
+        input_shift, prediction_shift, rules,
+        context={"review": signature, "cutoff_utc": cutoff.isoformat(), "rules": asdict(rules)},
+        source_kind="prepared_sources" if source == SOURCES[2] else "synthetic"), key="reliability")
 
 
 if __name__ == "__main__":

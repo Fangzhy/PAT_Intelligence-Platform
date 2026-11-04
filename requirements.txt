@@ -139,6 +139,8 @@ python-dateutil==4.0.0
     # via
     #   -c requirements.txt
     #   pandas
+python-dotenv==1.2.4
+    # via -r requirements.in
 python-multipart==0.0.33
     # via
     #   -c requirements.txt

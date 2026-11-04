@@ -2,10 +2,12 @@
 
 import streamlit as st
 from src.runtime import initialize_runtime, public_demo
+from src.llm_bootstrap import refresh_legacy_llm_modules
 
 
 def main():
     st.set_page_config(page_title="Vaccine PAT Intelligence", page_icon="🧪", layout="wide")
+    refresh_legacy_llm_modules()
     initialize_runtime(st.session_state)
     if public_demo():
         st.sidebar.caption("PUBLIC DEMO · Temporary session storage · Synthetic data")

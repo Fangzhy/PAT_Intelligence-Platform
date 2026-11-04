@@ -24,7 +24,7 @@ def run_integration(sources, config, ranges, selected):
 def main():
     st.set_page_config(page_title="Vaccine PAT | Data Integration", page_icon="🔗", layout="wide")
     pause_monitoring_on_navigation()
-    st.caption("VACCINE PAT INTELLIGENCE PLATFORM · PHASE 2")
+    st.caption("VACCINE PAT INTELLIGENCE PLATFORM")
     st.title("Align the sources. Inspect the quality.")
     st.write("Connect process sensors, Raman measurements, laboratory references, and batch metadata while preserving the original observations.")
     st.info("Educational workflow · No automatic interpolation or outlier removal · Range and statistical flags require review; they are not validated CPP limits or product quality decisions.")
@@ -111,7 +111,7 @@ def main():
     metrics[3].metric("Source rows flagged for review", len(flagged_rows))
     st.caption("A match confirms time proximity, not measurement quality. Inspect completeness and range/outlier flags before using values. Missing batch-ID rows remain in the selected scope for review.")
 
-    alignment_tab, quality_tab, raw_tab, learn_tab = st.tabs(["Aligned measurements", "Data quality report", "Raw & processed sources", "Learn Phase 2"])
+    alignment_tab, quality_tab, raw_tab, learn_tab = st.tabs(["Aligned measurements", "Data quality report", "Raw & processed sources", "Information"])
     with alignment_tab:
         st.subheader("Raman-anchored sensor observations")
         view_columns = ["batch_id", "spectrum_sample_id", "spectrum_timestamp", "sensor_sample_id", "sensor_measurement_timestamp", "sensor_time_delta_minutes", "sensor_matched", "spectrum_complete", "sensor_complete", "sensor_range_flag", "sensor_outlier_flag"]
@@ -189,7 +189,7 @@ Read `docs/phase_2_learning_guide.md` for the code walkthrough, assumptions, tes
         st.markdown("Methods: [pandas time matching](https://pandas.pydata.org/docs/reference/api/pandas.merge_asof.html) · [NIST potential-outlier labeling](https://www.itl.nist.gov/div898/handbook/eda/section3/eda35h.htm)")
 
     st.download_button("Download integration & quality report (ZIP)", report_archive, file_name="pat_integration_report.zip", mime="application/zip", type="primary")
-    st.caption("Report includes all raw inputs, scoped processed tables, aligned measurements, assay pairs, issue/missingness summaries, and a configuration manifest. No preprocessing or prediction model is fitted in Phase 2.")
+    st.caption("Report includes all raw inputs, scoped processed tables, aligned measurements, assay pairs, issue/missingness summaries, and a configuration manifest. No preprocessing or prediction model is fitted in Data_Integration.")
 
 
 def show_schema():
