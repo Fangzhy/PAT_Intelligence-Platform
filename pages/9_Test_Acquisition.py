@@ -103,7 +103,7 @@ def render_acquisition(adapter, context, limit):
         only_flags = st.checkbox("Only show duplicates, quarantines, or quality flags", value=True, key="acq_only_flags")
         view = ledger[ledger.status.ne("accepted") | ledger["flags"].ne("")] if only_flags and not ledger.empty else ledger
         st.dataframe(view, hide_index=True, width="stretch")
-        st.caption("Every delivery retains its original JSON and receipt time. Conflicting payloads for one event ID quarantine that ID, including an earlier accepted copy. Distinct event IDs with duplicate sample identities are retained for Phase 2's ambiguity checks.")
+        st.caption("Every delivery retains its original JSON and receipt time. Conflicting payloads for one event ID quarantine that ID, including an earlier accepted copy. Distinct event IDs with duplicate sample identities are retained for Data_Integration's ambiguity checks.")
         st.download_button("Download acquired snapshot & audit (ZIP)", acquisition_report_zip(session, context), file_name="pat_test_acquisition.zip", mime="application/zip", key="acq_report")
 
 

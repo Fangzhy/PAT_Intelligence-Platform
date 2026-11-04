@@ -80,6 +80,8 @@ def test_phase_two_quality_snapshot_is_available_and_incomplete_spectra_are_repo
     app.switch_page(PAGE).run()
     app.radio(key="spectral_source").set_value("Latest Phase 2 prepared Raman").run()
     assert not app.exception
+    assert "Latest Data_Integration prepared Raman" in app.radio(key="spectral_source").options
+    assert app.radio(key="spectral_source").value == "Latest Phase 2 prepared Raman"
     assert app.metric[0].value == "869"
     excluded = next(frame.value for frame in app.dataframe if "reason" in frame.value)
     assert excluded["sample_id"].tolist() == ["B001-S00004"]

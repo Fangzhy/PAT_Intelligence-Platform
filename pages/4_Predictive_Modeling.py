@@ -22,6 +22,12 @@ from src.modeling_storage import (
     load_holdout, load_study, save_study, stored_partition, study_report_zip,
 )
 from src.validation import regression_metrics
+from src.llm_bootstrap import refresh_legacy_llm_modules
+
+refresh_legacy_llm_modules()
+from src.llm_results import modeling_snapshot
+from src.llm_ui import render_explanation
+from src.ui_labels import workflow_label
 
 
 @st.cache_data(max_entries=4, show_spinner="Preparing the common assay-labeled modeling cohort…")
@@ -55,13 +61,13 @@ def residual_plot(rows, title):
 def main():
     st.set_page_config(page_title="Vaccine PAT | Predictive Modeling", page_icon="📈", layout="wide")
     pause_monitoring_on_navigation()
-    st.caption("VACCINE PAT INTELLIGENCE PLATFORM · PHASE 4")
+    st.caption("VACCINE PAT INTELLIGENCE PLATFORM")
     st.title("Compare soft sensors. Test independent batches.")
     st.write("Train from offline glucose or lactate assays, compare fixed spectral feature recipes, and preserve whole-batch separation.")
     st.info("Synthetic/public-data learning workflow · Assay references are labels; simulated truth is not a model input · No potency, purity, or manufacturing-validation claim.")
     with st.sidebar:
         st.header("Modeling cohort")
-        source = st.radio("Modeling data source", ["Synthetic modeling cohort", "Latest Phase 2 prepared sources"], key="model_source")
+        source = st.radio("Modeling data source", ["Synthetic modeling cohort", "Latest Phase 2 prepared sources"], format_func=workflow_label, key="model_source")
         target = st.selectbox("Prediction target", list(TARGETS), key="model_target")
     if source == "Synthetic modeling cohort":
         overview = st.session_state.get("simulation_config", SimulationConfig())
@@ -78,7 +84,7 @@ def main():
         except ValueError as error:
             st.error(str(error))
             return
-        st.caption("Using the latest successful Phase 2 snapshot. Previously inspected batches are not automatically a blind test; whole-batch separation alone cannot undo prior data inspection.")
+        st.caption("Using the latest successful Data_Integration snapshot. Previously inspected batches are not automatically a blind test; whole-batch separation alone cannot undo prior data inspection.")
     if not dataset.excluded.empty:
         st.warning(f"Excluded {len(dataset.excluded)} assay rows from the common cohort. All experiments use the same remaining rows, including sensor-only and spectral-only cases.")
         with st.expander("Modeling input exclusions"):
@@ -138,7 +144,7 @@ def main():
     evaluation = load_holdout(state_root, dataset.cohort_id) if active is not None else None
     cv_tab, predictions_tab, interpretation_tab, sensitivity_tab, test_tab, learn_tab = st.tabs([
         "Cross-validation comparison", "Predictions & residuals", "PLS & feature stability",
-        "Noise & drift sensitivity", "Independent batch test", "Learn Phase 4",
+        "Noise & drift sensitivity", "Independent batch test", "Information",
     ])
     if active is not None:
         case_ids = active.comparison.case_id.tolist()
@@ -259,7 +265,7 @@ def main():
 4. Review fold stability and prespecified noise/baseline sensitivity before freezing the plan.
 5. Evaluate the fixed holdout once, inspect batch/time errors, and explain whether differences are practically meaningful.
 
-References remain sparse offline assays. No IDs, timestamps, latent glucose/lactate, or batch scenario labels enter predictors. Common-row filtering avoids giving different feature sets different evaluation samples. Projected PCA exploration in Phase 3 is separate from predictive validation here.
+References remain sparse offline assays. No IDs, timestamps, latent glucose/lactate, or batch scenario labels enter predictors. Common-row filtering avoids giving different feature sets different evaluation samples. Projected PCA exploration in Spectral_Analytics is separate from predictive validation here.
 
 The local evaluation record discourages repeated test-driven tuning; it is not an access-control system and cannot guarantee that data was never viewed elsewhere. Use a genuinely new cohort for further final-validation claims. Read `docs/phase_4_learning_guide.md` for the architecture, equations, examples, limitations, tests, and three interview questions with sample answers. Process Monitoring can replay finalized saved pipelines or separately prepared demo calibration models without modifying this cohort's test record.
 """)
@@ -268,6 +274,9 @@ The local evaluation record discourages repeated test-driven tuning; it is not a
     if active is not None:
         st.download_button("Download modeling study report (ZIP)", study_report_zip(active, evaluation), file_name=f"pat_modeling_{active.study_id[:12]}.zip", mime="application/zip")
         st.caption("Report contains CV/tuning/fold/stability/robustness diagnostics and the CV-selected fitted pipeline. Holdout tables are included only after final evaluation. Local artifacts and the audit record are in .pat_state/modeling/; only load trusted generated model artifacts.")
+    render_explanation(modeling_snapshot(active, evaluation, inspected_case=case_id,
+        source_kind="synthetic" if source == "Synthetic modeling cohort" else "prepared_sources")
+        if active is not None else None, key="modeling")
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ def spectral_array(values, minimum_channels=3):
     if array.ndim != 2 or array.shape[0] == 0 or array.shape[1] < minimum_channels:
         raise ValueError(f"Provide a spectrum or matrix with at least {minimum_channels} channels and one row.")
     if not np.isfinite(array).all():
-        raise ValueError("Spectra must be finite. Review missing/invalid rows in Phase 2; no automatic filling is performed.")
+        raise ValueError("Spectra must be finite. Review missing/invalid rows in Data_Integration; no automatic filling is performed.")
     return array, vector
 
 

@@ -6,6 +6,10 @@ required to open the default synthetic Overview and replay screens. Models are
 prepared only by explicit buttons. Missing models show guidance instead of
 substitute predictions. The optional inference API is deferred.
 
+Optional [AI result explanations](AI_EXPLANATIONS.md) use a separate OpenRouter
+configuration. No key is needed for the main app or its offline template
+summaries. Shared public AI is disabled unless the operator enables it.
+
 ## Verify the release locally
 
 From the repository root in PowerShell:

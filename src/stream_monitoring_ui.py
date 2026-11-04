@@ -20,6 +20,12 @@ from src.monitoring import MonitoringSettings, alarm_state
 from src.stream_monitoring import AcquiredStreamSession, StreamSettings, acquired_stream_report_zip, freshness_errors
 from src.test_stream_source import PacedTestAdapter
 from src.runtime import public_demo
+from src.llm_bootstrap import refresh_legacy_llm_modules
+
+refresh_legacy_llm_modules()
+from src.llm_results import process_snapshot
+from src.llm_ui import render_captured_explanation
+from src.ui_labels import workflow_label
 
 
 SOURCES = ["Fresh in-app test stream", "Historical in-app test source", "Local HTTP test source"]
@@ -119,6 +125,7 @@ def render_stream(context, models, monitoring, rules, limit, signature):
             cards[index].caption(alarm_state(value, monitoring.sensor_limits[column]))
         if latest_sensor.sensor_quality_flags:
             st.warning(latest_sensor.sensor_quality_flags)
+    current_ok, fresh_flags = False, []
     if not prediction_view.empty:
         latest = prediction_view.iloc[-1]
         fresh_flags = freshness_errors(latest.measurement_timestamp, now, rules, "Latest spectrum")
@@ -152,6 +159,18 @@ def render_stream(context, models, monitoring, rules, limit, signature):
         st.dataframe(pd.DataFrame(session.invalidations), hide_index=True, width="stretch")
         st.download_button("Download acquired stream monitoring report (ZIP)", acquired_stream_report_zip(session, models, monitoring, rules, context, now=now), file_name="pat_acquired_stream_monitoring.zip", mime="application/zip", key="stream_report")
     st.caption("Monitoring owns this consumer's cursor/history. Leaving this page pauses polling. Historical predictions remain in the audit; current cards are withheld after a failed read, data silence, or freshness failure. Source/model/rule changes begin a fresh paused context.")
+    try:
+        snapshot = process_snapshot(prediction_view, sensor_view, assay_view, monitoring, cutoff=now,
+            context={"view": signature, "batch_view": selected, "invalidations": len(session.invalidations)},
+            current_eligible=current_ok, pending=len(session.pending),
+            health_flag_count=len(health_flags) + len(fresh_flags),
+            future_tolerance_seconds=rules.future_tolerance_seconds,
+            source_kind="prepared_sources" if context["source"] == SOURCES[2] else "synthetic")
+    except ValueError:
+        snapshot = None
+        st.info("An explanation snapshot cannot be assembled from these timestamps. Review the source clock and delivery audit.")
+    capture_context = sha256(f"{signature}:{selected}:{len(session.invalidations)}".encode()).hexdigest()
+    render_captured_explanation(snapshot, key="stream", context_id=capture_context, cutoff=now)
 
 
 def render_acquired_stream_page(config):
@@ -223,7 +242,7 @@ def render_acquired_stream_page(config):
                     except (OSError, ValueError, KeyError):
                         continue
             remembered = preferences.get("models", {}).get(target)
-            selected = st.selectbox(f"Stream {target.lower()} pipeline", labels, index=labels.index(remembered) if remembered in options else labels.index(default), key=f"stream_{target.lower()}_model")
+            selected = st.selectbox(f"Stream {target.lower()} pipeline", labels, index=labels.index(remembered) if remembered in options else labels.index(default), format_func=workflow_label, key=f"stream_{target.lower()}_model")
             chosen[target] = selected
             try:
                 models[target] = _model(options[selected]) if options[selected] else None

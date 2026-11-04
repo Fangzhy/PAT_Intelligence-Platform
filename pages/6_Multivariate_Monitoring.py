@@ -18,6 +18,11 @@ from src.multivariate_monitoring import (
     summarize_monitoring_batches,
 )
 from src.navigation import pause_monitoring_on_navigation
+from src.llm_bootstrap import refresh_legacy_llm_modules
+
+refresh_legacy_llm_modules()
+from src.llm_results import multivariate_snapshot
+from src.llm_ui import render_explanation
 
 
 SENSOR_LABELS = {
@@ -61,14 +66,14 @@ The upper limit for each chart is a separate nominal batch's empirical quantile 
 """)
     for limitation in LIMITATIONS:
         st.caption(limitation)
-    st.write("Read docs/phase_6_learning_guide.md for equations, code explanations, tests, assumptions, and three interview questions with sample answers. The proposed next phase is model reliability and lifecycle validation; it requires your instruction.")
+    st.write("Read docs/phase_6_learning_guide.md for equations, code explanations, tests, assumptions, and three interview questions with sample answers. Open Model_Reliability from the sidebar to review saved model evidence, residuals, bias, and distribution shifts.")
     st.markdown("References: [PCA](https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html) · [StandardScaler](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html) · [NumPy quantiles](https://numpy.org/doc/stable/reference/generated/numpy.quantile.html) · [NIST multivariate charts](https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc341.htm)")
 
 
 def main():
     st.set_page_config(page_title="Vaccine PAT | Multivariate Monitoring", page_icon="📊", layout="wide")
     pause_monitoring_on_navigation()
-    st.caption("VACCINE PAT INTELLIGENCE PLATFORM · PHASE 6")
+    st.caption("VACCINE PAT INTELLIGENCE PLATFORM")
     st.title("Monitor the joint process pattern.")
     st.write("Reference-fitted PCA, Hotelling’s T², and SPE/Q for temperature, pH, dissolved oxygen, feed flow, and agitation.")
     st.info("Synthetic historical comparison · Advisory only · Empirical reference limits · No manufacturing validation")
@@ -84,7 +89,7 @@ def main():
     except ValueError as error:
         st.warning(str(error))
         st.write("Use at least four batches to include a deliberately disturbed batch. The default six-batch configuration provides three fitting batches, one limit batch, and two evaluation batches.")
-        with st.expander("Learn Phase 6"):
+        with st.expander("Information"):
             render_learning()
         return
     nominal = dataset.batches.loc[dataset.batches.scenario.eq(NOMINAL_SCENARIO), "batch_id"].tolist()
@@ -112,8 +117,9 @@ def main():
     model = st.session_state.get("mspc_model")
     if model is None:
         st.write("Select nominal reference batches and click **Fit reference monitoring model**. No calibration or evaluation result is created before this action.")
-        with st.expander("Learn Phase 6", expanded=True):
+        with st.expander("Information", expanded=True):
             render_learning()
+        render_explanation(None, key="multivariate", empty_message="Fit a reference monitoring model to explain its recorded limits and chart statistics.")
         return
 
     scored = score_process_monitor(model, dataset.sensors)
@@ -133,7 +139,7 @@ def main():
     st.warning("Empirical limits pool the whole time-varying batch trajectory. Few batches, temporal correlation, two charts, and repeated testing prevent interpreting the quantile as a guaranteed false-alarm rate.")
     selected = st.multiselect("Batches in comparison charts", summary.batch_id.tolist(), default=list(model.partition.evaluation_batches), key="mspc_batches")
     view = scored[scored.batch_id.isin(selected)]
-    monitor_tab, pca_tab, sources_tab, learn_tab = st.tabs(["Control charts & process trends", "PCA pattern & residuals", "Calibration & observations", "Learn Phase 6"])
+    monitor_tab, pca_tab, sources_tab, learn_tab = st.tabs(["Control charts & process trends", "PCA pattern & residuals", "Calibration & observations", "Information"])
     with monitor_tab:
         if view.empty:
             st.info("Select at least one batch to display control charts.")
@@ -160,6 +166,7 @@ def main():
         observations = scored[scored.batch_id.eq(batch)]
         sample = st.selectbox("Residual inspection sample", observations.sample_id.tolist(), key="mspc_inspect_sample")
         observation = observations[observations.sample_id.eq(sample)]
+        contributions = None
         if observation.status.eq("scored").all():
             contributions = spe_sensor_contributions(model, observation)
             st.plotly_chart(px.bar(contributions, x="sensor", y="spe_contribution", labels={"spe_contribution": "Squared standardized residual", "sensor": "Observed sensor"}), width="stretch", key="mspc_contributions_chart")
@@ -172,9 +179,12 @@ def main():
         st.dataframe(view, hide_index=True, width="stretch", key="mspc_observations")
         st.caption("Raw measurements remain unchanged. Missing, nonfinite, duplicate, or implausible rows are audited without interpolation. Neither simulated glucose/lactate truth nor scenario labels enter the five-column PCA input matrix.")
         st.download_button("Download multivariate monitoring report (ZIP)", multivariate_report_zip(model, scored, dataset.batches, context={"simulation": asdict(config)}), file_name="pat_multivariate_monitoring.zip", mime="application/zip", key="mspc_report")
-        st.caption("The download includes all batches and reference calibration, regardless of chart selection. This is a full historical comparison, separate from the revealed-only Phase 5 replay export.")
+        st.caption("The download includes all batches and reference calibration, regardless of chart selection. This is a full historical comparison, separate from the revealed-only Process_Monitoring replay export.")
     with learn_tab:
         render_learning()
+    render_explanation(multivariate_snapshot(model, view, observation, contributions,
+        context={"simulation": asdict(config), "charts": selected, "inspection_batch": batch, "inspection_sample": sample}),
+        key="multivariate")
 
 
 if __name__ == "__main__":

@@ -11,3 +11,5 @@ xgboost>=3.0,<4; sys_platform != "linux"
 xgboost-cpu>=3.0,<4; sys_platform == "linux"
 joblib>=1.4,<2
 packaging>=24,<27
+requests>=2.34,<3
+python-dotenv>=1.2,<2
