@@ -18,6 +18,7 @@ from src.modeling_data import SENSOR_COLUMNS, TARGETS
 from src.modeling_storage import DEFAULT_STATE_ROOT
 from src.monitoring import DEFAULT_PREDICTION_LIMITS, DEFAULT_SENSOR_LIMITS, MonitoringSettings
 from src.replay import MonitoringSession, known_assays, monitoring_report_zip, replay_batch, replay_fault_example
+from src.runtime import apply_page_runtime
 
 
 SENSOR_LABELS = {
@@ -151,20 +152,39 @@ def render_monitor(batch, models, settings, mode, review_elapsed, context):
 
 def main():
     st.set_page_config(page_title="Vaccine PAT | Process Monitoring", page_icon="⏱️", layout="wide")
+    apply_page_runtime()
+    acquisition = st.session_state.get("acquisition_session")
+    if acquisition is not None:
+        acquisition.running = False
     st.caption("VACCINE PAT INTELLIGENCE PLATFORM · PHASE 5")
-    st.title("Replay the process. Monitor real model estimates.")
-    st.write("Synthetic time-ordered replay with direct sensors, saved glucose/lactate pipelines, input validation, and advisory monitoring limits.")
-    st.info("Educational replay · Advisory only · No physical equipment control · Monitored process variables are not confirmed CPPs without process-specific CQA evidence.")
+    st.title("Monitor process measurements and model estimates.")
+    st.write("Replay recorded observations or acquire a stream, check inputs, and apply saved glucose/lactate pipelines with advisory monitoring limits.")
+    st.info("Educational monitoring · Advisory only · No physical equipment control · Monitored process variables are not confirmed CPPs without process-specific CQA evidence.")
     config = st.session_state.get("simulation_config", SimulationConfig())
-    dataset = load_dataset(config)
     preferences = st.session_state.get("monitoring_preferences", {})
+    with st.sidebar:
+        modes = ["Replay", "Historical review", "Acquired stream"]
+        requested = st.session_state.pop("monitoring_mode_requested", None)
+        if requested in modes:
+            st.session_state["monitor_mode"] = requested
+        mode = st.radio("Monitoring mode", modes, index=modes.index(st.session_state.get("monitoring_mode_preference", preferences.get("mode", "Replay"))), key="monitor_mode")
+    st.session_state["monitoring_mode_preference"] = mode
+    if mode == "Acquired stream":
+        replay = st.session_state.get("monitoring_session")
+        if replay is not None:
+            replay.clock.pause()
+        from src.stream_monitoring_ui import render_acquired_stream_page
+        render_acquired_stream_page(config)
+        return
+    stream = st.session_state.get("stream_monitoring_session")
+    if stream is not None:
+        stream.pause()
+    dataset = load_dataset(config)
     with st.sidebar:
         st.header("Replay setup")
         st.caption(f"Overview configuration: seed {config.seed}, {config.n_batches} batches, {config.duration_h:g} h. No equipment connection is used.")
         batches = dataset.batches.batch_id.tolist()
         selected_batch = st.selectbox("Replay batch", batches, index=batches.index(preferences.get("batch")) if preferences.get("batch") in batches else 0, key="monitor_batch")
-        modes = ["Replay", "Historical review"]
-        mode = st.radio("Monitoring mode", modes, index=modes.index(preferences.get("mode", "Replay")), key="monitor_mode")
         rate = st.selectbox("Observations per second", [0.5, 1.0, 2.0, 5.0, 10.0], index=[0.5, 1.0, 2.0, 5.0, 10.0].index(preferences.get("rate", 1.0)), key="monitor_rate")
         faults = st.checkbox("Inject known replay faults", value=preferences.get("faults", False), key="monitor_faults")
     batch = replay_batch(dataset, selected_batch)

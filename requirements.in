@@ -1,4 +1,4 @@
-# Phases 1–7. requirements.txt pins the complete resolved environment.
+# Phases 1–8. requirements.txt pins the complete resolved environment.
 numpy>=2.2,<3
 pandas>=2.2,<3
 streamlit>=1.50,<2
@@ -7,4 +7,7 @@ pytest>=8.4,<10
 scipy>=1.15,<2
 scikit-learn>=1.6,<2
 PyWavelets>=1.8,<2
-xgboost>=3.0,<4
+xgboost>=3.0,<4; sys_platform != "linux"
+xgboost-cpu>=3.0,<4; sys_platform == "linux"
+joblib>=1.4,<2
+packaging>=24,<27

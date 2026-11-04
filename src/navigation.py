@@ -4,7 +4,13 @@ import streamlit as st
 
 
 def pause_monitoring_on_navigation():
-    """Freeze replay on other pages instead of catching up unseen time on return."""
+    """Freeze replay and test acquisition while visiting other analysis pages."""
     session = st.session_state.get("monitoring_session")
     if session is not None:
         session.clock.pause()
+    acquisition = st.session_state.get("acquisition_session")
+    if acquisition is not None:
+        acquisition.running = False
+    stream = st.session_state.get("stream_monitoring_session")
+    if stream is not None:
+        stream.pause()

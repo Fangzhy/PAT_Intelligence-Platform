@@ -117,6 +117,6 @@ def test_phase_two_handoff_and_return_to_earlier_pages_preserve_working_features
     app.switch_page("pages/3_Spectral_Analytics.py").run()
     assert not app.exception
     assert app.metric[0].value == "870"
-    app.switch_page("app.py").run()
+    app.switch_page("pages/1_Overview.py").run()
     assert not app.exception
     assert app.metric[0].value == "6"

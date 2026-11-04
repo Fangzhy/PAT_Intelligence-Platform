@@ -1,9 +1,28 @@
 # Vaccine-PAT-Intelligence-Platform
 
 A learning-oriented Python application for exploring a synthetic recombinant
-protein fed-batch bioreactor and, in future phases, developing PAT analytics.
-**Phases 1–7 are implemented.** The default measurements are synthetic. This is an
+protein fed-batch bioreactor, PAT analytics, monitoring, and model deployment.
+**Phases 1–8 application features are implemented.** Public Cloud publication
+still requires deploying and checking a hosted URL. The default measurements are synthetic. This is an
 educational portfolio demonstration, not a manufacturing-validated system.
+An optional **Data Acquisition** page, labeled **Test mode**, provides separate polling
+adapters against in-app and local HTTP test sources.
+
+## Workflow navigation
+
+The sidebar follows the data workflow, with Overview first and named sections:
+
+| Section | Pages in order |
+|---|---|
+| Overview | Overview |
+| Data | Data Acquisition → Data Integration & Quality |
+| Analytics | Spectral Analytics → Predictive Modeling |
+| Monitoring | Process Monitoring → Multivariate Monitoring → Model Reliability |
+| Lifecycle | Deployment & Reporting |
+
+Data Integration's source selector includes an **Open Data Acquisition** shortcut.
+Acquisition keeps its **Test mode** badge visible and sends a detached snapshot
+back to integration. Source/adapter code remains separate from the page UI.
 
 ## Start locally in VS Code
 
@@ -198,6 +217,54 @@ Read the [Phase 5 learning guide](docs/phase_5_learning_guide.md) for replay and
 inference mathematics, source/time separation, code explanations, limitations,
 verification outcomes, and three interview questions with sample answers.
 
+## Acquired streams: online quality checks and prediction
+
+**Process Monitoring → Monitoring mode → Acquired stream** connects acquisition
+directly to online inference:
+
+**Adapter → received records → same-batch backward alignment → input/freshness
+checks → saved preprocessing/model pipeline → versioned predictions and alerts**
+
+1. Keep **Fresh in-app test stream** selected. Choose the fixture batch and pace.
+2. Click **Prepare / reuse stream demo models** if matching saved models are
+   unavailable. This explicit action calibrates on separate data; polling never
+   trains, tunes, or changes an independent-test record.
+3. Click **Start acquired stream**, or **Poll stream once**. Direct sensor trends
+   and glucose/lactate estimates update from newly received records.
+4. Inspect pending inputs, quality/domain flags, available assays, and the
+   versioned prediction history. Pause/reset or download the stream report.
+
+The fresh fixture releases records over real time with current UTC timestamps;
+one original simulated hour takes one real second by default. A separate HTTP
+producer can provide the same paced stream:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.test_acquisition_source --port 8765 --stream --duration 24 --channels 71
+```
+
+Select **Local HTTP test source**, use `http://127.0.0.1:8765`, and match the
+HTTP demo model configuration (71 channels, 24 h for this command). The default
+server without `--stream` remains a historical source; use the explicit
+historical setting/freshness override when reviewing those old timestamps.
+
+Spectra wait briefly for missing sensors or batch metadata. Matching never uses
+future or cross-batch sensors. Missing/implausible, stale/future-dated,
+out-of-domain, or mismatched-axis inputs yield gaps. Later conflicts withdraw
+affected published estimates while preserving original estimates and an audit.
+Assays are delayed display/reliability references and are never model inputs.
+
+Monitoring owns its own acquisition cursor and pauses on navigation. Current
+prediction cards are withheld on read failure, source silence, or stale inputs;
+historical results remain visible in their audit. Replay/Historical review and
+Data Acquisition's detached integration snapshots remain available. The
+**Use this source in Process Monitoring** shortcut copies source settings without
+copying a collection cursor or silently disabling HTTP freshness checks.
+
+See the [acquired-stream learning guide](docs/acquired_stream_monitoring_learning_guide.md)
+for timing equations, examples, limitations, and tests. This is a complete test
+stream workflow; actual process connectors and manufacturing validation remain
+future work. No dependencies were added.
+
 ## Phase 6: multivariate statistical process monitoring
 
 Open **Multivariate Monitoring** in the sidebar and click **Fit reference
@@ -281,10 +348,63 @@ Read the [Phase 7 learning guide](docs/phase_7_learning_guide.md) for equations,
 code examples, default numerical results, limitations, tests, and three
 interview questions with sample answers. No dependencies were added.
 
+## Optional extension: separate test acquisition adapters
+
+The original app had synthetic replay and CSV import, but no independent polling
+adapter. **Data Acquisition** now provides that prototype while preserving the
+simulator and existing monitoring pages.
+
+1. Open **Data → Data Acquisition** in the sidebar. Keep **In-app test source** selected
+   and click **Poll once**, or **Connect / start polling** for one poll per second.
+2. Inspect collected sensors, spectra, delayed assays, batch metadata, source
+   timestamps, receipt timestamps, and the delivery audit. Pause/reset as needed.
+3. Enable **Include test delivery faults**, apply settings, and poll. Identical
+   duplicate deliveries are suppressed; invalid timestamps/schema are quarantined;
+   missing numeric observations stay missing with quality flags.
+4. Click **Send snapshot to Data Integration**, then open Data Integration in
+   the sidebar. **Acquired test snapshot** is selected automatically. The normal
+   alignment/quality workflow runs on a detached snapshot; subsequent collection
+   does not silently change it. Spectral Analytics can use this Phase 2 handoff.
+5. Download the collected source CSVs, original delivery JSON audit, and cursor/
+   source manifest. Only polled records are included.
+
+To exercise the HTTP adapter against a separate local process, run another
+terminal at the project root:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.test_acquisition_source --port 8765
+```
+
+Select **Local HTTP test source**, use `http://127.0.0.1:8765`, click **Apply
+source settings**, then poll. The default server serves a fixed 24 h synthetic
+batch with 71 Raman channels. Add `--faults` for delivery/quality examples.
+Stop it with **Ctrl+C**; failed reads pause the collector without advancing its
+cursor or deleting collected data. Restarting the identical source can resume;
+a changed source identity requires an explicit collection reset.
+
+Both adapters implement `poll(cursor, limit)` and return the same bounded JSON
+page contract. Collection handles source identity, duplicate/conflicting event
+IDs, channel consistency, schema/time validation, and numeric quality flags.
+The HTTP client is GET-only, limited to explicitly configured loopback test
+URLs, and uses a read timeout and response-size limit. Navigation pauses polling.
+
+The default source is historical test-record replay; `--stream` enables paced
+fresh-timestamp records and the acquired-stream monitoring workflow above.
+Actual equipment, OPC UA, and MQTT connectors remain future work. Measurement and laboratory result
+times remain separate from current receipt time. The session buffer is bounded
+at 10,000 deliveries; it is not a durable historian or exactly-once message
+system. The acquisition extension adds no dependencies or equipment control
+actions. Phase 8 deployment and reporting are described below.
+
+Read the [acquisition adapter learning guide](docs/acquisition_adapter_learning_guide.md)
+for the protocol, examples, extension points, limitations, tests, and three
+interview questions with sample answers.
+
 ## Project layout
 
 ```text
-app.py                          Streamlit Overview and plotting
+app.py                          Grouped Streamlit page router and workflow order
+pages/1_Overview.py              Synthetic bioreactor Overview and plotting
 src/data_generation.py          Process balances and measurement simulation
 src/app_data.py                 Cached synthetic dataset shared across pages
 src/navigation.py               Replay pause behavior independent of cached data imports
@@ -304,14 +424,21 @@ src/replay.py                   Replay clock, revealed history, causal assay vie
 src/multivariate_monitoring.py   Reference-fitted PCA, separate empirical limits, scores, audit/report
 src/reliability.py              Frozen metrics, causal assay residuals, drift, and reports
 src/reliability_storage.py      Read-only evidence loading and isolated explicit demo preparation
+src/acquisition.py              Adapter contract, polling, deduplication/quarantine, snapshots, audit
+src/test_acquisition_source.py  Standalone loopback JSON test server and CLI
+src/test_stream_source.py       Paced fresh-UTC producer using the same acquisition contract
+src/stream_monitoring.py        Online alignment, quality/freshness, frozen inference, revisions
+src/stream_monitoring_ui.py     Acquired-stream mode, source/model controls, live trends/report
 pages/2_Data_Integration.py     Integration, quality, and availability dashboard
 pages/3_Spectral_Analytics.py    Interactive spectral analysis laboratory
 pages/4_Predictive_Modeling.py   Comparative soft-sensor modeling laboratory
 pages/5_Process_Monitoring.py    Replay controls, real model estimates, and advisory alerts
 pages/6_Multivariate_Monitoring.py PCA control charts, batch comparison, scores, and residuals
 pages/7_Model_Reliability.py     Frozen evidence, review clock, residuals, drift, and provenance
+pages/9_Test_Acquisition.py      Optional in-app/HTTP polling lab and explicit Phase 2 handoff
 tests/test_data_generation.py   Scientific and data identity checks
 tests/test_app.py               Streamlit startup and interaction checks
+tests/test_navigation_app.py    Sidebar order, visible test mode, integration shortcut and state
 tests/test_data_integration.py  Time, provenance, missingness, and quality checks
 tests/test_integration_app.py   Navigation and integration page interactions
 tests/test_preprocessing.py     Known answers and training-only preprocessing
@@ -331,6 +458,12 @@ tests/test_multivariate_app.py  Calibration actions, chart units, configuration,
 tests/test_reliability.py       Known residual/drift answers, causality, gaps, reference isolation
 tests/test_reliability_storage.py Frozen reuse, holdout isolation, separate targets, sealed state
 tests/test_reliability_app.py   Explicit preparation, time controls, saved studies, navigation
+tests/test_acquisition.py       Cursor/identity/quality contracts, source round trips, snapshot export
+tests/test_acquisition_http.py  Real loopback reads, timeouts, disconnects, invalid HTTP/JSON
+tests/test_acquisition_app.py   Controls, detached handoff, page navigation, visible connection errors
+tests/test_stream_monitoring.py Online quality/alignment, freshness, no refit, pending/conflict decisions
+tests/test_stream_monitoring_app.py Source controls, saved predictions, stale cards, replay/navigation
+tests/test_stream_http.py       Fresh paced HTTP producer through saved inference end to end
 docs/phase_1_learning_guide.md   Equations, code walkthrough, interview practice
 docs/phase_2_learning_guide.md   Integration rules, exercises, interview practice
 docs/phase_3_learning_guide.md   Spectral methods, regression checks, interview practice
@@ -338,6 +471,8 @@ docs/phase_4_learning_guide.md   Model comparison, interpretation, tests, interv
 docs/phase_5_learning_guide.md   Replay, inference, reliability, tests, interview practice
 docs/phase_6_learning_guide.md   PCA monitoring, empirical limits, false alarms, interview practice
 docs/phase_7_learning_guide.md   Reliability evidence, drift, delayed residuals, interview practice
+docs/acquisition_adapter_learning_guide.md Test-source protocol, usage, assumptions, interview practice
+docs/acquired_stream_monitoring_learning_guide.md Online processing, timing, inference, audit, tests
 docs/synthetic_data_assumptions.md
 .streamlit/config.toml          Theme and disabled usage telemetry
 requirements.in                Direct dependencies
@@ -349,7 +484,8 @@ Future modules and pages will be added when their phase is approved; there are
 no empty placeholder implementations. Data is generated in memory and cached by
 configuration. No external data source or credentials are needed. Soft-sensor
 monitoring loads local saved pipelines; its explicit demo preparation action
-can supply them. Optional CSV uploads remain in the local Streamlit session.
+can supply them. Optional CSV uploads and acquired snapshots remain in the local
+Streamlit session.
 No dependency changes were needed for Phases 2, 5, 6, or 7.
 
 ## Run checks
@@ -384,7 +520,32 @@ Phase 7 adds frozen evidence loading, separate reproducible demo studies,
 sample/result-time residual causality, rolling bias, known Wasserstein distances,
 constant/insufficient-data screens, training-reference isolation, guarded saved
 inference, report scope, source/axis checks, and earlier-phase navigation.
+The optional acquisition extension adds real loopback HTTP transport checks,
+atomic cursor progress, duplicate/conflict handling, malformed/changed-source
+recovery, buffer bounds, receipt/source time separation, and explicit snapshot
+handoff through existing integration without changing the simulator.
+Acquired-stream checks add pending/expired alignment, same-batch backward sensor
+selection, wall-clock freshness/future bounds, true saved-pipeline predictions,
+no fitting or assay leakage, late-conflict invalidation, stale current-card
+withholding, fresh/idle HTTP transport, and independent replay/stream cursors.
 
-Live equipment connections, manufacturing validation, validated false-alarm
-rates, and Phase 8 deployment remain future work. **Development stops after
-Phase 7 until you explicitly request Phase 8.**
+Phase 8 adds guarded batch inference, recorded evaluation downloads, immutable
+trusted model release ZIPs, integrity and reload-parity checks, per-visitor
+temporary public-demo state, and Windows/Linux CI configuration. See
+[Cloud setup and release checks](deployment/README.md), the
+[demonstration guide](deployment/DEMO_GUIDE.md),
+[scientific limitations](deployment/SCIENTIFIC_LIMITATIONS.md), and
+[three deployment interview questions](deployment/INTERVIEW_PREPARATION.md).
+The local [Phase 8 learning guide](docs/phase_8_learning_guide.md) explains the
+implementation and a numerical parity example. Most local learning documents
+remain ignored by Git; public deployment guides are in `deployment/`.
+
+Open **Lifecycle → Deployment & Reporting**. Select a finalized saved pipeline
+or explicitly prepare the separate CV-only demo, run its example inputs, then
+create a release bundle. No model upload, automatic training, or new holdout
+evaluation occurs on that page. Missing/corrupt artifacts show actionable errors.
+Use Python 3.11, and run `python -m src.deployment_check` plus
+`python -m src.deployment_smoke` in the pinned environment before publication.
+
+Live equipment connections, manufacturing validation, and validated false-alarm
+rates remain future work. No public hosted URL has been verified in this checkout.

@@ -89,7 +89,7 @@ def test_phase_two_quality_snapshot_is_available_and_incomplete_spectra_are_repo
     # current result must remain internally consistent in either mode.
     expected = "868" if app.checkbox(key="quality_demo").value else "870"
     assert app.metric[1].value == expected
-    app.switch_page("app.py").run()
+    app.switch_page("pages/1_Overview.py").run()
     assert not app.exception
     assert app.metric[0].value == "6"
 
