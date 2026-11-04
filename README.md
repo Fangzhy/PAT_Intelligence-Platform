@@ -1,5 +1,7 @@
 # Vaccine-PAT-Intelligence-Platform
 
+[Launch live demo](https://pat-intelligence.streamlit.app/)
+
 A learning-oriented Python application for exploring a synthetic recombinant
 protein fed-batch bioreactor, PAT analytics, monitoring, and model deployment.
 **Phases 1–8 application features are implemented.** Public Cloud publication
