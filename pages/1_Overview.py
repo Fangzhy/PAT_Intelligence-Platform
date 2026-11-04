@@ -8,6 +8,7 @@ import streamlit as st
 from src.app_data import load_dataset
 from src.navigation import pause_monitoring_on_navigation
 from src.data_generation import SimulationConfig
+from src.runtime import apply_page_runtime, public_demo
 
 
 SENSOR_VARIABLES = {
@@ -40,6 +41,7 @@ def trend_chart(frame: pd.DataFrame, column: str, label: str, color_map: dict):
 
 def main() -> None:
     st.set_page_config(page_title="Vaccine PAT | Overview", page_icon="🧪", layout="wide")
+    apply_page_runtime()
     pause_monitoring_on_navigation()
     st.caption("VACCINE PAT INTELLIGENCE PLATFORM · OVERVIEW")
     st.title("Explore the process. Understand the measurements.")
@@ -51,13 +53,15 @@ def main() -> None:
         st.header("Simulation setup")
         with st.form("simulation_setup"):
             seed = st.number_input("Random seed", min_value=0, max_value=1_000_000, value=saved_config.seed, step=1, key="seed")
-            n_batches = st.slider("Number of batches", min_value=2, max_value=10, value=saved_config.n_batches, key="n_batches")
-            duration = st.selectbox("Batch duration (h)", [72, 144, 240], index=[72, 144, 240].index(saved_config.duration_h), key="duration")
-            interval = st.selectbox("Observation interval (h)", [0.5, 1.0, 2.0], index=[0.5, 1.0, 2.0].index(saved_config.sample_interval_h), key="interval")
+            n_batches = st.slider("Number of batches", min_value=2, max_value=8 if public_demo() else 10, value=saved_config.n_batches, key="n_batches")
+            durations = [72, 144] if public_demo() else [72, 144, 240]
+            intervals = [1.0, 2.0] if public_demo() else [0.5, 1.0, 2.0]
+            duration = st.selectbox("Batch duration (h)", durations, index=durations.index(saved_config.duration_h), key="duration")
+            interval = st.selectbox("Observation interval (h)", intervals, index=intervals.index(saved_config.sample_interval_h), key="interval")
             st.form_submit_button("Generate dataset", type="primary")
         st.caption("The same configuration reproduces the same dataset. Every fourth batch includes a known synthetic disturbance.")
 
-    config = SimulationConfig(n_batches=n_batches, duration_h=duration, sample_interval_h=interval, seed=seed)
+    config = SimulationConfig(n_batches=n_batches, duration_h=duration, sample_interval_h=interval, seed=seed, n_wavenumbers=saved_config.n_wavenumbers)
     st.session_state["simulation_config"] = config
     dataset = load_dataset(config)
     batch_ids = dataset.batches["batch_id"].tolist()

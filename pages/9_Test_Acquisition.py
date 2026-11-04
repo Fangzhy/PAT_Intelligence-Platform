@@ -15,6 +15,7 @@ from src.acquisition import (
 from src.app_data import load_dataset
 from src.data_generation import SimulationConfig
 from src.data_integration import SENSOR_RANGES, SourceTables, sources_from_dataset
+from src.runtime import apply_page_runtime, public_demo
 
 
 MODES = ["In-app test source", "Local HTTP test source"]
@@ -75,7 +76,7 @@ def render_acquisition(adapter, context, limit):
         st.error(session.last_error)
         st.caption("The failed read did not advance the cursor or remove collected observations. Fix/restart the test source, then poll again. A different source snapshot requires Reset collection.")
     st.caption(f"Source identity: {session.source_id or 'Not yet read'} · Cursor: {session.cursor} · Last successful receipt (UTC): {session.last_success_utc or 'None'}")
-    st.caption("Polling is explicit and runs once per second while started. Each poll reads a bounded page of historical records, not one second of process time. Source timestamps and laboratory result availability remain separate from actual receipt time. Navigation pauses polling.")
+    st.caption("Polling is explicit and runs once per second while started. Each poll reads a bounded page of test records; source time cadence is defined by the producer. Source timestamps and laboratory result availability remain separate from actual receipt time. Navigation pauses polling.")
     counts = pd.DataFrame([{"source": name, "collected_rows": len(frame)} for name, frame in snapshot.as_dict().items()])
     st.dataframe(counts, hide_index=True, width="stretch")
     if not ledger.empty:
@@ -108,30 +109,49 @@ def render_acquisition(adapter, context, limit):
 
 def main():
     st.set_page_config(page_title="Vaccine PAT | Data Acquisition", page_icon="📥", layout="wide")
+    apply_page_runtime()
     # Other pages pause acquisition through navigation.py; this page pauses replay.
     replay = st.session_state.get("monitoring_session")
     if replay is not None:
         replay.clock.pause()
+    stream = st.session_state.get("stream_monitoring_session")
+    if stream is not None:
+        stream.pause()
     st.caption("VACCINE PAT INTELLIGENCE PLATFORM · OPTIONAL ACQUISITION PROTOTYPE")
     st.title("Data Acquisition")
     st.badge("Test mode", icon=":material/science:", color="orange")
     st.write("Collect records from an in-app fixture or a local HTTP test source, then send a snapshot to Data Integration.")
-    st.info("Read-only test sources · Simulator preserved · Historical test timestamps · No real process connection or equipment control")
+    st.info("Read-only test sources · Simulator preserved · Source and receipt timestamps are separate · No real process connection or equipment control")
     config = st.session_state.get("simulation_config", SimulationConfig())
     batches = load_dataset(config).batches.batch_id.tolist()
     preferences = st.session_state.get("acquisition_preferences", {})
     with st.sidebar:
         st.header("Test source settings")
         with st.form("acquisition_setup"):
-            mode = st.selectbox("Acquisition source", MODES, index=MODES.index(preferences.get("mode", MODES[0])), key="acq_mode")
+            allowed = MODES[:1] if public_demo() else MODES
+            remembered_mode = preferences.get("mode", MODES[0])
+            if remembered_mode not in allowed:
+                st.session_state.pop("acq_mode", None)
+                remembered_mode = allowed[0]
+            mode = st.selectbox("Acquisition source", allowed, index=allowed.index(remembered_mode), key="acq_mode")
             remembered = preferences.get("batch", batches[0])
             batch = st.selectbox("In-app fixture batch", batches, index=batches.index(remembered) if remembered in batches else 0, key="acq_batch")
             faults = st.checkbox("Include test delivery faults", value=preferences.get("faults", False), key="acq_faults")
-            url = st.text_input("Local test source URL", value=preferences.get("url", "http://127.0.0.1:8765"), key="acq_url")
+            url = preferences.get("url", "http://127.0.0.1:8765")
+            if not public_demo():
+                url = st.text_input("Local test source URL", value=url, key="acq_url")
             limit = st.selectbox("Records per poll", [5, 10, 25, 50, 100], index=[5, 10, 25, 50, 100].index(preferences.get("limit", 10)), key="acq_limit")
             st.form_submit_button("Apply source settings", key="acq_apply")
         st.caption("Fixture batch/fault settings apply to the in-app source. Configure the HTTP server independently. Source changes create a new paused collection; page size preserves the cursor.")
     st.session_state["acquisition_preferences"] = {"mode": mode, "batch": batch, "faults": faults, "url": url, "limit": limit}
+    if st.button("Use this source in Process Monitoring", key="acq_open_monitoring"):
+        previous = st.session_state.get("stream_monitor_preferences", {})
+        st.session_state["stream_monitor_preferences"] = {**previous,
+            "source": "Historical in-app test source" if mode == MODES[0] else "Local HTTP test source",
+            "batch": batch, "faults": faults, "url": url, "limit": limit,
+            "enforce": False if mode == MODES[0] else True}
+        st.session_state["monitoring_mode_requested"] = "Acquired stream"
+        st.switch_page("pages/5_Process_Monitoring.py")
     context = {"mode": mode, "url": url if mode == MODES[1] else None,
         "simulation": asdict(config) if mode == MODES[0] else None,
         "fixture_batch": batch if mode == MODES[0] else None, "faults": faults if mode == MODES[0] else None}
@@ -146,10 +166,13 @@ def main():
         st.error(str(error))
         return
     render_acquisition(adapter, context, limit)
-    with st.expander("Run the standalone HTTP test source"):
-        st.write("Run this command in another terminal at the project root, select Local HTTP test source above, apply settings, then Poll once or start polling:")
-        st.code(r".\.venv\Scripts\python.exe -m src.test_acquisition_source --port 8765", language="powershell")
-        st.write("The server binds to 127.0.0.1 and serves a fixed historical synthetic batch. Add --faults for duplicate delivery, invalid timestamp/schema, and missing pH examples. Ctrl+C stops the server. Restarting with identical settings preserves the snapshot ID; changed settings require resetting the collector.")
+    if public_demo():
+        st.caption("The public demo uses in-app sources. Local HTTP test servers are available when running this project on your computer.")
+    else:
+        with st.expander("Run the standalone HTTP test source", expanded=False):
+            st.write("Run this command in another terminal at the project root, select Local HTTP test source above, apply settings, then Poll once or start polling:")
+            st.code(r".\.venv\Scripts\python.exe -m src.test_acquisition_source --port 8765", language="powershell")
+            st.write("The server binds to 127.0.0.1 and serves a fixed historical synthetic batch. Add --faults for duplicate delivery, invalid timestamp/schema, and missing pH examples. Ctrl+C stops the server. Restarting with identical settings preserves the snapshot ID; changed settings require resetting the collector.")
     with st.expander("Learn acquisition adapters"):
         st.write("AcquisitionAdapter defines poll(cursor, limit). The two adapters return the same JSON page contract. AcquisitionSession owns cursor, deduplication, quarantine, receipt times, and the collection buffer; it does not know simulator equations or fit models. A future approved connector would translate its own source into this contract.")
         st.write("Example: a page delivering sequences 0–9 moves the cursor from 0 to 10. Retrying after a failed read requests 10 again. A repeated event ID with the identical payload creates an audit row but no duplicate source row. An assay collected at 0 h is delivered only at its later result time.")

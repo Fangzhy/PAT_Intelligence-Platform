@@ -1,10 +1,14 @@
 """Application entrypoint: order pages by the PAT workflow, independent of filenames."""
 
 import streamlit as st
+from src.runtime import initialize_runtime, public_demo
 
 
 def main():
     st.set_page_config(page_title="Vaccine PAT Intelligence", page_icon="🧪", layout="wide")
+    initialize_runtime(st.session_state)
+    if public_demo():
+        st.sidebar.caption("PUBLIC DEMO · Temporary session storage · Synthetic data")
     pages = {
         "": [st.Page("pages/1_Overview.py", title="Overview", icon="🧪", default=True)],
         "Data": [
@@ -19,6 +23,9 @@ def main():
             st.Page("pages/5_Process_Monitoring.py", title="Process Monitoring", icon="⏱️"),
             st.Page("pages/6_Multivariate_Monitoring.py", title="Multivariate Monitoring", icon="📊"),
             st.Page("pages/7_Model_Reliability.py", title="Model Reliability", icon="🔎"),
+        ],
+        "Lifecycle": [
+            st.Page("pages/8_Model_Deployment.py", title="Deployment & Reporting", icon="📦"),
         ],
     }
     st.navigation(pages, position="sidebar", expanded=True).run()

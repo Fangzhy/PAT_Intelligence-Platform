@@ -11,3 +11,6 @@ def pause_monitoring_on_navigation():
     acquisition = st.session_state.get("acquisition_session")
     if acquisition is not None:
         acquisition.running = False
+    stream = st.session_state.get("stream_monitoring_session")
+    if stream is not None:
+        stream.pause()

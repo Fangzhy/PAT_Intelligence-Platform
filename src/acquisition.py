@@ -61,10 +61,11 @@ class AcquisitionPage:
     records: list[dict]
     next_cursor: int
     has_more: bool
+    idle: bool = False
 
     def as_dict(self):
         return {"schema_version": SCHEMA_VERSION, "source_id": self.source_id, "records": self.records,
-                "next_cursor": self.next_cursor, "has_more": self.has_more}
+                "next_cursor": self.next_cursor, "has_more": self.has_more, "idle": self.idle}
 
 
 class AcquisitionAdapter(Protocol):
@@ -81,7 +82,9 @@ def validate_page(page, cursor, limit):
     if not isinstance(page.records, list) or len(page.records) > limit or not isinstance(page.has_more, bool):
         raise AcquisitionError("Invalid record page size or continuation flag.")
     _integer(page.next_cursor, 0, 10**12, "Next cursor")
-    if page.next_cursor != cursor + len(page.records) or (not page.records and page.has_more):
+    if not isinstance(page.idle, bool) or (page.idle and (page.records or not page.has_more)):
+        raise AcquisitionError("Idle pages must be empty and keep the source open.")
+    if page.next_cursor != cursor + len(page.records) or (not page.records and page.has_more and not page.idle):
         raise AcquisitionError("The page cursor does not advance by its delivery count.")
     for sequence, record in enumerate(page.records, start=cursor):
         if (not isinstance(record, dict) or not isinstance(record.get("sequence"), Integral)
@@ -192,7 +195,7 @@ class LocalHTTPAdapter:
             data = json.loads(payload.decode("utf-8"), object_pairs_hook=_unique_object, parse_constant=_invalid_constant)
             if not isinstance(data, dict) or type(data.get("schema_version")) is not int or data["schema_version"] != SCHEMA_VERSION:
                 raise AcquisitionError("Unsupported acquisition schema version.")
-            page = AcquisitionPage(data["source_id"], data["records"], data["next_cursor"], data["has_more"])
+            page = AcquisitionPage(data["source_id"], data["records"], data["next_cursor"], data["has_more"], data.get("idle", False))
             validate_page(page, cursor, limit)
             return page
         except (HTTPError, URLError, OSError, UnicodeError, ValueError, KeyError, TypeError) as error:

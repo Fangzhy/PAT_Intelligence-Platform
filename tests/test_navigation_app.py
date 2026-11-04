@@ -25,10 +25,11 @@ def test_sidebar_groups_follow_the_data_workflow_and_register_each_page(monkeypa
         "Data": ["Data Acquisition", "Data Integration & Quality"],
         "Analytics": ["Spectral Analytics", "Predictive Modeling"],
         "Monitoring": ["Process Monitoring", "Multivariate Monitoring", "Model Reliability"],
+        "Lifecycle": ["Deployment & Reporting"],
     }]
     registered = list(app._registered_pages.values())
     assert [page["page_name"] for page in registered][:3] == ["Overview", "Data Acquisition", "Data Integration & Quality"]
-    assert len({page["script_path"] for page in registered}) == 8
+    assert len({page["script_path"] for page in registered}) == 9
     assert registered[0]["url_pathname"] == ""
     assert registered[1]["url_pathname"] == "Data_Acquisition"
 

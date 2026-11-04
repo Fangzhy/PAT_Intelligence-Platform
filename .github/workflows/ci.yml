@@ -1,0 +1,34 @@
+name: Application checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: "1"
+      OMP_NUM_THREADS: "2"
+      OPENBLAS_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install --only-binary=:all: -r requirements.txt
+      - run: python -m pip check
+      - run: python -m src.deployment_check
+      - run: python -m pytest -q
+      - run: python -m src.deployment_smoke
+        env:
+          PAT_DEPLOYMENT_MODE: public_demo
