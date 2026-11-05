@@ -11,6 +11,7 @@ from src.feature_engineering import FEATURE_SETS
 from src.modeling import MODELS
 from src.modeling_data import SENSOR_COLUMNS, TARGETS
 from src.monitoring import alarm_state
+from src.prediction_reliability import study_range_performance
 
 
 PROMPT_VERSION = "pat-explanations-v2"
@@ -29,6 +30,7 @@ LIMITATIONS = {
     "monitoring": "This is a captured historical monitoring snapshot, not a live freshness statement or a new predictive validation.",
     "advisory": "Advisory limits and input-quality/domain screens are distinct. A missing value or rejected estimate is not a normal process observation.",
     "empirical": "Empirical per-chart quantiles do not guarantee a joint false-alarm rate under correlated, repeatedly monitored batch observations.",
+    "prediction_reliability": "Declared concentration ranges and PLS empirical applicability checks are demonstration policies, not validated method ranges, prediction intervals, or manufacturing validation. Eligible-only errors require coverage; unassessed checks do not establish reliability. Python checks determine eligibility.",
     "contributions": "T-squared/SPE exceedances and residual contributions are review signals, not confirmed physical causes.",
 }
 CHECKS = {
@@ -122,6 +124,21 @@ def modeling_snapshot(study, evaluation, *, inspected_case=None, source_kind="sy
         if result.case.model == "pls":
             facts.add(f"{role}: fitted PLS latent variables", result.best_params["n_components"], "training", "components")
     limitations = ["educational", "selection", "missing_test" if evaluation is None else "frozen_test"]
+    policy = getattr(study.results[study.winner_id].estimator, "prediction_policy_", None)
+    if policy is not None:
+        limitations.append("prediction_reliability")
+        for bounds, label in ((policy.declared_range, "Declared demo concentration range"), (policy.decision_range, "Decision range")):
+            facts.add(f"{label} lower", bounds[0], "saved_policy", "g/L")
+            facts.add(f"{label} upper", bounds[1], "saved_policy", "g/L")
+        facts.add("Spectral applicability assessed for saved model", policy.applicability_scope != "not_assessed", "saved_policy", "boolean")
+        table = study_range_performance(study, evaluation)
+        for _, band in table[table.reference_band.eq("Decision range")].iterrows():
+            scope = "independent_test" if band.evidence == "Independent batches (frozen)" else "grouped_cv"
+            for column, label, unit in (("reference_rows", "reference pairs", "pairs"),
+                ("eligible_rows", "eligible pairs under new checks", "pairs"),
+                ("assessed_rows", "pairs with both checks assessed", "pairs"),
+                ("all_RMSE", "all-row RMSE", "g/L"), ("all_Bias", "all-row bias", "g/L")):
+                facts.add(f"Winner decision range {label}", band[column], scope, unit)
     if evaluation is not None:
         winner = evaluation["metrics"].set_index("case_id").loc[study.winner_id]
         for key, label, unit in (("RMSEP", "Frozen winner independent-batch RMSEP", "g/L"),
@@ -260,8 +277,14 @@ def process_snapshot(history, sensors, assays, settings, *, cutoff, context, cur
         facts.add(f"{target} unavailable historical estimates", len(status) - int(valid.sum()), "captured_history", "observations")
         facts.add(f"{target} advisory lower bound", settings.prediction_limits[target][0], "advisory_rule", "g/L")
         facts.add(f"{target} advisory upper bound", settings.prediction_limits[target][1], "advisory_rule", "g/L")
+        for column, label, outside in (("applicability_status", "spectral applicability rejections", "outside_training_limits"),
+                                       ("range_status", "declared-range rejections", "outside_declared_range")):
+            field = f"{prefix}_{column}"
+            if field in history:
+                facts.add(f"{target} {label}", int(history[field].eq(outside).sum()), "captured_history", "observations")
+                facts.add(f"{target} {column} unassessed", int(history[field].eq("not_assessed").sum()), "captured_history", "observations")
     return _finish("Process Monitoring", "Glucose and Lactate", source_kind, facts,
-                   ["educational", "monitoring", "advisory", "gaps"], ["freshness", "limits", "assays", "domain"],
+                   ["educational", "monitoring", "advisory", "gaps", "prediction_reliability"], ["freshness", "limits", "assays", "domain"],
                    {"view": context, "cutoff": cutoff.isoformat(), "eligible": bool(current_eligible)})
 
 

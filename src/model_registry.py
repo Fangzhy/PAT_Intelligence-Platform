@@ -18,7 +18,7 @@ from src.modeling_storage import _atomic_joblib, _atomic_json, study_manifest
 
 
 DEFAULT_MONITORING_MODELS = Path(__file__).resolve().parents[1] / ".pat_state" / "monitoring" / "models"
-DEMO_PROTOCOL = "phase5-demo-v1"
+DEMO_PROTOCOL = "phase5-demo-v2-reliability"
 
 
 @dataclass(frozen=True)

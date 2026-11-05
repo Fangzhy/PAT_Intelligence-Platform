@@ -15,6 +15,7 @@ from scipy.stats import wasserstein_distance
 from src.modeling_data import SENSOR_COLUMNS, TARGETS
 from src.modeling_storage import _json_text, study_manifest
 from src.monitoring import MonitoringSettings, predict_observation
+from src.prediction_reliability import DIAGNOSTIC_COLUMNS, reliability_record, study_range_performance
 from src.replay import ReplayBatch, replay_fault_example
 from src.validation import regression_metrics
 
@@ -35,7 +36,7 @@ FAULT_SCENARIOS = (
 )
 HISTORY_COLUMNS = ["sample_id", "batch_id", "elapsed_time_h", "measurement_timestamp",
                    "prediction_g_l", "prediction_status", "prediction_flags", "model_version",
-                   "prediction_time_utc", "max_abs_z"]
+                   "prediction_time_utc", "max_abs_z"] + DIAGNOSTIC_COLUMNS
 
 
 @dataclass(frozen=True)
@@ -193,7 +194,8 @@ class ReliabilityReview:
                     "elapsed_time_h": metadata.elapsed_time_h, "measurement_timestamp": metadata.measurement_timestamp,
                     "prediction_g_l": prediction.prediction_g_l, "prediction_status": prediction.status,
                     "prediction_flags": "; ".join(prediction.flags), "model_version": prediction.model_version,
-                    "prediction_time_utc": prediction.prediction_time_utc, "max_abs_z": prediction.max_abs_z}
+                    "prediction_time_utc": prediction.prediction_time_utc, "max_abs_z": prediction.max_abs_z,
+                    **reliability_record(prediction)}
             rows.append(self.records[identity])
         return pd.DataFrame(rows, columns=HISTORY_COLUMNS)
 
@@ -285,6 +287,7 @@ def reliability_report_zip(study, evaluation, history, residuals, input_shift, p
     with ZipFile(output, "w", ZIP_DEFLATED) as archive:
         archive.writestr("manifest.json", _json_text(manifest))
         archive.writestr("frozen_validation/performance.csv", frozen_performance(study, evaluation).to_csv(index=False))
+        archive.writestr("frozen_validation/range_performance.csv", study_range_performance(study, evaluation).to_csv(index=False))
         archive.writestr("frozen_validation/cv_folds.csv", study.folds.to_csv(index=False))
         if evaluation is not None:
             batches = evaluation["batch_metrics"]

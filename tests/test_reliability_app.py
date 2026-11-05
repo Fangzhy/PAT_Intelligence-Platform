@@ -63,7 +63,12 @@ def test_backward_review_hides_future_reference_results_and_preserves_inference(
     assert not app.exception
     app.button(key="reliability_latest").click().run()
     assert not app.exception
-    assert [metric.value for metric in app.metric[:3]] == ["73", "4", "4"]
+    assert [metric.value for metric in app.metric[:3]] == ["73", "4", "3"]
+    pairs = table(app, ["pair_status", "residual_alarm"])
+    rejected = pairs.pair_status.eq("prediction_unavailable")
+    assert rejected.sum() == 1
+    assert pairs.loc[rejected, "prediction_status"].eq("outside_reliability_limits").all()
+    assert pairs.loc[rejected, "residual_g_l"].isna().all()
     history = table(app, ["prediction_status", "prediction_flags"])
     inferred = history.prediction_time_utc.iloc[0]
     app.slider(key="reliability_clock").set_value(0.0).run()
@@ -90,8 +95,11 @@ def test_rule_changes_never_retest_and_residual_bias_fault_is_distinguished(tmp_
     app.button(key="reliability_latest").click().run()
     assert not app.exception
     changed = table(app, ["pair_status", "residual_alarm"])
-    late = changed.collection_elapsed_time_h >= 36
+    assert changed.pair_status.equals(clean.pair_status)
+    late = (changed.collection_elapsed_time_h >= 36) & changed.pair_status.eq("assessed")
+    assert late.any()
     np.testing.assert_allclose(changed.loc[late, "residual_g_l"] - clean.loc[late, "residual_g_l"], -1)
+    assert changed.loc[changed.pair_status.ne("assessed"), "residual_g_l"].isna().all()
     assert table(app, ["evidence", "RMSE_g_l"]).equals(frozen)
     assert any("reference fault" in warning.value for warning in app.warning)
 

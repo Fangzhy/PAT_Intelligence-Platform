@@ -17,6 +17,7 @@ from src.data_integration import integrate_sources, sources_from_dataset
 from src.modeling_data import TARGETS, modeling_dataset
 from src.modeling_storage import DEFAULT_STATE_ROOT
 from src.monitoring import MonitoringSettings
+from src.prediction_reliability_ui import render_study_reliability, render_observation_reliability
 from src.navigation import pause_monitoring_on_navigation
 from src.reliability import (
     FAULT_SCENARIOS, RELIABILITY_LIMITATIONS, ReliabilityReview, ReliabilitySettings,
@@ -112,6 +113,7 @@ def main():
         with st.expander("Information", expanded=True):
             render_learning()
         return
+    render_study_reliability(study, evaluation, key="review_prediction_reliability")
     st.subheader("Recorded performance of the CV-selected model")
     st.dataframe(frozen_performance(study, evaluation), hide_index=True, width="stretch", key="reliability_performance")
     st.caption(f"Study {study.study_id[:12]} · Cohort {study.cohort_id[:12]} · Target {target} (g/L) · Winner {study.winner_id} · Training batches: {', '.join(study.partition.training_batches)} · Test batches: {', '.join(study.partition.holdout_batches)}")
@@ -163,6 +165,8 @@ def main():
     elapsed = st.slider("Review elapsed time (h)", 0.0, maximum, step=0.5, key="reliability_clock")
     cutoff = start + pd.Timedelta(hours=elapsed)
     history = review.history(batch, cutoff, bundle, inference_rules)
+    if not history.empty:
+        render_observation_reliability(history.iloc[-1], targets=[target], prefixed=False, key="review")
     residuals = available_reference_residuals(history, batch.assays, target, cutoff, rules)
     inputs = batch.inputs.loc[history.sample_id]
     compatible_axes = batch.axis.shape == study.axis.shape and np.allclose(batch.axis, study.axis, rtol=1e-10, atol=1e-10)

@@ -18,6 +18,7 @@ from src.data_integration import _utc_timestamp
 from src.modeling_data import SENSOR_COLUMNS, TARGETS
 from src.modeling_storage import _json_text
 from src.monitoring import PredictionResult, alarm_state, input_quality_errors, predict_observation
+from src.prediction_reliability import reliability_record
 
 
 @dataclass(frozen=True)
@@ -81,6 +82,7 @@ def _suppressed(target, bundle, status, flags):
 def _result_fields(result, settings):
     prefix = result.target.lower()
     return {
+        **reliability_record(result, f"{prefix}_"),
         f"{prefix}_prediction_g_l": result.prediction_g_l,
         f"{prefix}_original_prediction_g_l": result.prediction_g_l,
         f"{prefix}_status": result.status, f"{prefix}_original_status": result.status,

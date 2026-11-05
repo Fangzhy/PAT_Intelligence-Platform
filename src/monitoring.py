@@ -9,6 +9,7 @@ import pandas as pd
 from src.data_integration import SENSOR_RANGES
 from src.model_registry import ModelBundle
 from src.modeling_data import SENSOR_COLUMNS, TARGETS
+from src.prediction_reliability import assess_prediction_reliability
 
 
 DEFAULT_SENSOR_LIMITS = {
@@ -127,6 +128,7 @@ class PredictionResult:
     max_abs_z: float
     prediction_time_utc: object
     latency_ms: float
+    reliability: dict = field(default_factory=dict)
 
 
 def predict_observation(bundle: ModelBundle | None, target, row, axis,
@@ -136,12 +138,13 @@ def predict_observation(bundle: ModelBundle | None, target, row, axis,
         raise ValueError("Supply one DataFrame row and a supported concentration target.")
     started = perf_counter()
     maximum = np.nan
+    diagnostics = {}
     version = bundle.version if bundle else "Unavailable"
     validation = bundle.metadata.get("validation_status", "Not independently validated") if bundle else "No model loaded"
 
     def result(status, flags=(), value=np.nan):
         return PredictionResult(target, float(value), status, tuple(flags), version, validation, maximum,
-            pd.Timestamp.now(tz="UTC") if bundle is not None else pd.NaT, (perf_counter() - started) * 1000)
+            pd.Timestamp.now(tz="UTC") if bundle is not None else pd.NaT, (perf_counter() - started) * 1000, diagnostics)
 
     if bundle is None:
         return result("model_unavailable", ["No saved model selected; no concentration is synthesized"])
@@ -168,6 +171,14 @@ def predict_observation(bundle: ModelBundle | None, target, row, axis,
         prediction = np.asarray(pipeline.predict(ordered), dtype=float).reshape(-1)
         if prediction.shape != (1,) or not np.isfinite(prediction[0]) or prediction[0] < 0:
             return result("invalid_prediction", ["Non-finite, negative, or invalid-shape concentration estimate; not clipped"])
+        diagnostics = assess_prediction_reliability(pipeline, ordered, prediction).iloc[0].to_dict()
+        flags = []
+        if diagnostics["applicability_status"] == "outside_training_limits":
+            flags.append("PLS input applicability exceeds training empirical score-distance or spectral-residual limits")
+        if diagnostics["range_status"] == "outside_declared_range":
+            flags.append("Concentration estimate is outside the saved declared demo range; advisory alarm limits do not override this gate")
+        if flags:
+            return result("outside_reliability_limits", flags)
         return result("ok", value=prediction[0])
     except (ValueError, TypeError, FloatingPointError) as error:
         return result("inference_error", [str(error)])

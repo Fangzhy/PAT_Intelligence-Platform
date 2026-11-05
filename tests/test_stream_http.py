@@ -42,7 +42,13 @@ def test_actual_http_fresh_source_idle_recovery_and_saved_predictions(tmp_path):
         clock[0] = 60
         assert session.poll_once(adapter, models, monitoring, rules, limit=100, now=start + pd.Timedelta(seconds=60))
         assert session.acquisition.complete and len(session.history()) == 25
-        assert session.history().glucose_status.eq("ok").all()
+        history = session.history()
+        assert set(history.glucose_status) == {"ok", "outside_reliability_limits"}
+        accepted = history.glucose_status.eq("ok")
+        assert np.isfinite(history.loc[accepted, "glucose_prediction_g_l"]).all()
+        assert history.loc[~accepted, "glucose_prediction_g_l"].isna().all()
+        assert history.loc[~accepted, "glucose_flags"].str.len().gt(0).all()
+        assert (~history.loc[~accepted, "glucose_reliability_eligible"]).all()
         assert session.history().glucose_model_version.eq(models["Glucose"].version).all()
     finally:
         server.shutdown()

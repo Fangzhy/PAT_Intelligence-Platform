@@ -1,6 +1,6 @@
 """Training-only feature/model search, pooled batch CV, and frozen holdout scoring."""
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from hashlib import sha256
 import json
 from numbers import Integral
@@ -22,6 +22,8 @@ from xgboost import XGBRegressor
 from src.feature_engineering import FEATURE_SETS, SpectralFeatures
 from src.modeling_data import BatchPartition, ModelingDataset
 from src.validation import batch_folds, fold_manifest, regression_metrics
+from src.prediction_reliability import (RELIABILITY_PROTOCOL, checked_bounds,
+    fit_prediction_policy, assess_prediction_reliability)
 
 
 PROTOCOL_VERSION = "phase4-v1"
@@ -58,12 +60,19 @@ class TrainingConfig:
     max_pls_components: int = 8
     tree_count: int = 80
     seed: int = 42
+    declared_range: tuple | None = None
+    decision_range: tuple | None = None
 
     def __post_init__(self):
         for name, minimum in (("n_splits", 2), ("max_pls_components", 1), ("tree_count", 1), ("seed", 0)):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, Integral) or value < minimum:
                 raise ValueError(f"{name} must be an integer >= {minimum}.")
+        for name in ("declared_range", "decision_range"):
+            object.__setattr__(self, name, checked_bounds(getattr(self, name), name))
+        if self.declared_range and self.decision_range and not (
+            self.declared_range[0] <= self.decision_range[0] < self.decision_range[1] <= self.declared_range[1]):
+            raise ValueError("Decision range must be inside the declared concentration range.")
 
 
 @dataclass
@@ -78,6 +87,7 @@ class CaseResult:
     fold_scores: pd.DataFrame
     feature_stability: pd.DataFrame
     robustness: pd.DataFrame
+    oof_reliability: pd.DataFrame | None = field(default=None)
 
 
 @dataclass
@@ -208,9 +218,16 @@ def train_case(X, y, axis, case, config, folds, prepared=None):
         ("scale", StandardScaler()),
         ("model", _base_model(case.model, config).set_params(**parameters)),
     ]).fit(X, reference)
+    fit_prediction_policy(final, X, reference, config.declared_range, config.decision_range)
+    diagnostics = []
+    for estimator, entry in zip(estimators, prepared):
+        training, validation = entry["training"], entry["validation"]
+        fit_prediction_policy(estimator, X.iloc[training], reference[training], config.declared_range, config.decision_range)
+        diagnostics.append(assess_prediction_reliability(estimator, X.iloc[validation], predictions[validation]))
+    oof_reliability = pd.concat(diagnostics).loc[X.index]
     return CaseResult(case, final, parameters, metrics, regression_metrics(reference, _prediction(final, X)), predictions,
         pd.DataFrame(tuning), pd.DataFrame(fold_scores), stability,
-        _robustness(estimators, prepared, X, reference, config.seed))
+        _robustness(estimators, prepared, X, reference, config.seed), oof_reliability)
 
 
 def train_study(dataset: ModelingDataset, partition: BatchPartition, cases=DEFAULT_CASES,
@@ -224,8 +241,13 @@ def train_study(dataset: ModelingDataset, partition: BatchPartition, cases=DEFAU
     metadata = dataset.metadata.loc[training].copy()
     if not np.isfinite(y).all() or y.nunique() < 2:
         raise ValueError("Training references must be finite and have nonzero variation.")
+    declared = config.declared_range or (float(y.min()), float(y.max()))
+    if declared[0] < y.min() or declared[1] > y.max():
+        raise ValueError("Declared concentration range must stay within the training-reference extent.")
+    if config.decision_range and not (declared[0] <= config.decision_range[0] < config.decision_range[1] <= declared[1]):
+        raise ValueError("Decision range must be inside the declared concentration range.")
     folds = batch_folds(metadata["batch_id"], config.n_splits)
-    payload = {"protocol": PROTOCOL_VERSION, "cohort_id": dataset.cohort_id, "target": dataset.target,
+    payload = {"protocol": PROTOCOL_VERSION, "reliability_protocol": RELIABILITY_PROTOCOL, "cohort_id": dataset.cohort_id, "target": dataset.target,
         "partition": asdict(partition), "config": asdict(config), "cases": [asdict(case) for case in cases]}
     study_id = sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
     results, failures, comparison, prepared = {}, [], [], {}
@@ -272,6 +294,9 @@ def evaluate_holdout(study: TrainingStudy, dataset: ModelingDataset):
             rows["reference_g_l"], rows["prediction_g_l"] = reference.to_numpy(), prediction
             rows["residual_g_l"] = prediction - reference.to_numpy()
             rows["case_id"] = case_id
+            diagnostics = assess_prediction_reliability(result.estimator, X, prediction)
+            for column in diagnostics:
+                rows[column] = diagnostics[column]
             predictions.append(rows)
             for batch_id, group in rows.groupby("batch_id", sort=True):
                 scores = regression_metrics(group["reference_g_l"], group["prediction_g_l"])

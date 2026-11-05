@@ -16,6 +16,7 @@ from src.data_generation import SimulationConfig
 from src.data_integration import integrate_sources, sources_from_dataset
 from src.feature_engineering import FEATURE_SETS
 from src.modeling import DEFAULT_CASES, MODELS, ModelCase, TrainingConfig, pls_diagnostics, train_study
+from src.prediction_reliability_ui import render_study_reliability
 from src.modeling_data import TARGETS, fixed_batch_partition, modeling_dataset
 from src.modeling_storage import (
     DEFAULT_STATE_ROOT, cv_predictions, evaluate_once, holdout_is_sealed,
@@ -121,6 +122,17 @@ def main():
         folds = st.selectbox("Training-only GroupKFold splits", splits, index=splits.index(min(existing.n_splits, len(partition.training_batches))), disabled=sealed, key="model_folds")
         max_components = st.slider("Maximum PLS latent variables to compare", 1, 12, min(12, existing.max_pls_components), disabled=sealed, key="model_components")
         trees = st.selectbox("Trees per forest / boosting fit", [40, 80, 160], index=[40, 80, 160].index(existing.tree_count) if existing.tree_count in (40, 80, 160) else 1, disabled=sealed, key="model_trees")
+        custom_range = st.checkbox("Declare concentration and decision ranges", value=existing.declared_range is not None or existing.decision_range is not None, disabled=sealed, key="model_custom_range")
+        training_y = dataset.y.loc[training]
+        supported = (float(training_y.min()), float(training_y.max()))
+        declared_defaults = existing.declared_range or supported
+        decision_defaults = existing.decision_range or declared_defaults
+        st.caption(f"Training-reference extent: {supported[0]:.4g}–{supported[1]:.4g} g/L. Default policy uses this provisional extent. Custom ranges are saved before test disclosure and cannot extend it.")
+        bounds = st.columns(4)
+        range_low = bounds[0].number_input("Declared lower (g/L)", min_value=0.0, value=declared_defaults[0], disabled=sealed, key=f"model_range_low_{target}")
+        range_high = bounds[1].number_input("Declared upper (g/L)", min_value=0.0, value=declared_defaults[1], disabled=sealed, key=f"model_range_high_{target}")
+        decision_low = bounds[2].number_input("Decision lower (g/L)", min_value=0.0, value=decision_defaults[0], disabled=sealed, key=f"model_decision_low_{target}")
+        decision_high = bounds[3].number_input("Decision upper (g/L)", min_value=0.0, value=decision_defaults[1], disabled=sealed, key=f"model_decision_high_{target}")
         train_clicked = st.form_submit_button("Train and compare (CV only)", type="primary", disabled=sealed, key="train_models")
     st.caption("PLS compares valid component counts from 1 to the chosen cap. RF and XGBoost compare compact fixed grids; Linear Regression is an untuned baseline. Features and scalers are fitted separately inside each training fold. No early stopping uses the holdout.")
     if sealed:
@@ -131,7 +143,9 @@ def main():
         else:
             progress = st.progress(0.0, text="Preparing training-only comparisons…")
             try:
-                config = TrainingConfig(folds, max_components, trees)
+                config = TrainingConfig(folds, max_components, trees,
+                    declared_range=(range_low, range_high) if custom_range else None,
+                    decision_range=(decision_low, decision_high) if custom_range else None)
                 study = train_study(dataset, partition, [catalog[label] for label in experiments], config,
                     progress=lambda index, total, case: progress.progress(index / total, text=f"Training {index + 1}/{total}: {case}"))
                 save_study(study, state_root)
@@ -154,6 +168,7 @@ def main():
         all_cv = cv_predictions(active)
         rows = all_cv[all_cv.case_id == case_id]
         st.caption(f"Saved study {active.study_id[:12]} · CV-selected winner: {experiment_label(active.results[active.winner_id].case)} · Current form edits do not change the saved results until training is submitted.")
+        render_study_reliability(active, evaluation, case_id=case_id, key="model_prediction_reliability")
 
     with cv_tab:
         if active is None:

@@ -10,6 +10,7 @@ import pandas as pd
 
 from src.modeling_data import SENSOR_COLUMNS, TARGETS
 from src.monitoring import alarm_state, input_quality_errors, predict_observation
+from src.prediction_reliability import reliability_record
 
 
 @dataclass
@@ -161,6 +162,7 @@ def observation_record(batch, position, models, settings, mode="Replay"):
             f"{prefix}_latency_ms": result.latency_ms,
             f"{prefix}_alarm": alarm_state(result.prediction_g_l, settings.prediction_limits[target]) if result.status == "ok" else "Not assessed",
         })
+        record.update(reliability_record(result, f"{prefix}_"))
     return record
 
 
