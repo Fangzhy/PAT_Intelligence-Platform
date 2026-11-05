@@ -28,10 +28,10 @@ def cached_pipeline(reference):
 
 
 def main():
-    st.set_page_config(page_title="Vaccine PAT | Deployment & Reporting", page_icon="📦", layout="wide")
+    st.set_page_config(page_title="PAT | Deployment & Reporting", page_icon="📦", layout="wide")
     apply_page_runtime()
     pause_monitoring_on_navigation()
-    st.caption("VACCINE PAT INTELLIGENCE PLATFORM")
+    st.caption("PAT INTELLIGENCE PLATFORM")
     st.title("Deploy reproducible models. Keep the evidence.")
     st.info("Educational deployment · Trusted app-created pipelines · Synthetic evidence · No manufacturing validation")
     if public_demo():

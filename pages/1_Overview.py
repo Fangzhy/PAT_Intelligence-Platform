@@ -40,10 +40,10 @@ def trend_chart(frame: pd.DataFrame, column: str, label: str, color_map: dict):
 
 
 def main() -> None:
-    st.set_page_config(page_title="Vaccine PAT | Overview", page_icon="🧪", layout="wide")
+    st.set_page_config(page_title="PAT | Overview", page_icon="🧪", layout="wide")
     apply_page_runtime()
     pause_monitoring_on_navigation()
-    st.caption("VACCINE PAT INTELLIGENCE PLATFORM · OVERVIEW")
+    st.caption("PAT INTELLIGENCE PLATFORM · OVERVIEW")
     st.title("Explore the process. Understand the measurements.")
     st.write("A synthetic recombinant protein fed-batch bioreactor, from process sensors to Raman spectra and laboratory references.")
     st.info("Educational synthetic data · No manufacturing validation · Overview concentrations are simulation truth or synthetic assays. Separately labeled trained-model estimates are available on Predictive Modeling and Process Monitoring.")

@@ -22,9 +22,9 @@ def run_integration(sources, config, ranges, selected):
 
 
 def main():
-    st.set_page_config(page_title="Vaccine PAT | Data Integration", page_icon="🔗", layout="wide")
+    st.set_page_config(page_title="PAT | Data Integration", page_icon="🔗", layout="wide")
     pause_monitoring_on_navigation()
-    st.caption("VACCINE PAT INTELLIGENCE PLATFORM")
+    st.caption("PAT INTELLIGENCE PLATFORM")
     st.title("Align the sources. Inspect the quality.")
     st.write("Connect process sensors, Raman measurements, laboratory references, and batch metadata while preserving the original observations.")
     st.info("Educational workflow · No automatic interpolation or outlier removal · Range and statistical flags require review; they are not validated CPP limits or product quality decisions.")

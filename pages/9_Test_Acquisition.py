@@ -108,7 +108,7 @@ def render_acquisition(adapter, context, limit):
 
 
 def main():
-    st.set_page_config(page_title="Vaccine PAT | Data Acquisition", page_icon="📥", layout="wide")
+    st.set_page_config(page_title="PAT | Data Acquisition", page_icon="📥", layout="wide")
     apply_page_runtime()
     # Other pages pause acquisition through navigation.py; this page pauses replay.
     replay = st.session_state.get("monitoring_session")
@@ -117,7 +117,7 @@ def main():
     stream = st.session_state.get("stream_monitoring_session")
     if stream is not None:
         stream.pause()
-    st.caption("VACCINE PAT INTELLIGENCE PLATFORM · OPTIONAL ACQUISITION PROTOTYPE")
+    st.caption("PAT INTELLIGENCE PLATFORM · OPTIONAL ACQUISITION PROTOTYPE")
     st.title("Data Acquisition")
     st.badge("Test mode", icon=":material/science:", color="orange")
     st.write("Collect records from an in-app fixture or a local HTTP test source, then send a snapshot to Data Integration.")

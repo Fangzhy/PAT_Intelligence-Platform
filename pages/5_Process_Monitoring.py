@@ -163,12 +163,12 @@ def render_monitor(batch, models, settings, mode, review_elapsed, context):
 
 
 def main():
-    st.set_page_config(page_title="Vaccine PAT | Process Monitoring", page_icon="⏱️", layout="wide")
+    st.set_page_config(page_title="PAT | Process Monitoring", page_icon="⏱️", layout="wide")
     apply_page_runtime()
     acquisition = st.session_state.get("acquisition_session")
     if acquisition is not None:
         acquisition.running = False
-    st.caption("VACCINE PAT INTELLIGENCE PLATFORM")
+    st.caption("PAT INTELLIGENCE PLATFORM")
     st.title("Monitor process measurements and model estimates.")
     st.write("Replay recorded observations or acquire a stream, check inputs, and apply saved glucose/lactate pipelines with advisory monitoring limits.")
     st.info("Educational monitoring · Advisory only · No physical equipment control · Monitored process variables are not confirmed CPPs without process-specific CQA evidence.")

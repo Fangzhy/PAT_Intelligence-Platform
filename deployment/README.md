@@ -47,7 +47,7 @@ Ubuntu and Windows. Review both jobs before publishing an update.
    deployment guides, requirements, and example config to your chosen release
    branch. Keep `.pat_state/`, `.venv/`, uploaded data, and secrets out of Git.
    The existing repository is
-   [Fangzhy/Vaccine-PAT-Intelligence-Platform](https://github.com/Fangzhy/Vaccine-PAT-Intelligence-Platform).
+   [Fangzhy/PAT_Intelligence-Platform](https://github.com/Fangzhy/PAT_Intelligence-Platform).
    This checkout uses `dev`; Cloud must select the branch containing Phase 8.
    A local commit does not update GitHub: push the reviewed branch first.
 2. Sign into [Streamlit Community Cloud](https://share.streamlit.io/) with the

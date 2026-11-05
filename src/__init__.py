@@ -1,1 +1,1 @@
-"""Scientific components for the synthetic Vaccine PAT learning application."""
+"""Scientific components for the synthetic PAT Intelligence learning application."""
