@@ -2,6 +2,7 @@
 
 from dataclasses import asdict
 import json
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -18,6 +19,8 @@ from src.multivariate_monitoring import (
     summarize_monitoring_batches,
 )
 from src.navigation import pause_monitoring_on_navigation
+from src.multivariate_storage import DEFAULT_PCA_ROOT, save_pca_reference, list_pca_references, load_pca_reference
+from src.multivariate_stream_ui import render_acquired_pca
 from src.llm_bootstrap import refresh_legacy_llm_modules
 
 refresh_legacy_llm_modules()
@@ -70,21 +73,72 @@ The upper limit for each chart is a separate nominal batch's empirical quantile 
     st.markdown("References: [PCA](https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html) · [StandardScaler](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html) · [NumPy quantiles](https://numpy.org/doc/stable/reference/generated/numpy.quantile.html) · [NIST multivariate charts](https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc341.htm)")
 
 
+def save_reference_control(model, config, root):
+    if st.button("Save fitted historical PCA reference", key="mspc_save_reference"):
+        try:
+            reference_config = SimulationConfig(**st.session_state.get("mspc_reference_config", asdict(config)))
+            identity = save_pca_reference(model, reference_config, root)
+            st.success(f"Historical PCA reference saved: {identity[:12]}. Incoming observations do not update it.")
+        except (OSError, ValueError) as error:
+            st.error(f"PCA reference could not be saved: {error}")
+
+
 def main():
     st.set_page_config(page_title="PAT | Multivariate Monitoring", page_icon="📊", layout="wide")
-    pause_monitoring_on_navigation()
+    views = ["Historical reference comparison", "Acquired sensor monitoring"]
+    requested = st.session_state.pop("mspc_mode_requested", None)
+    if requested in views:
+        st.session_state["mspc_mode_preference"] = requested
+        st.session_state.pop("mspc_mode", None)
+    default_view = views[1] if st.session_state.get("stream_monitor_workspace") is not None else views[0]
+    mode = st.radio("Multivariate data source", views, index=views.index(st.session_state.get("mspc_mode_preference", default_view)), key="mspc_mode")
+    st.session_state["mspc_mode_preference"] = mode
+    if mode == views[0]:
+        pause_monitoring_on_navigation()
+    else:
+        replay = st.session_state.get("monitoring_session")
+        if replay is not None:
+            replay.clock.pause()
     st.caption("PAT INTELLIGENCE PLATFORM")
     st.title("Monitor the joint process pattern.")
     st.write("Reference-fitted PCA, Hotelling’s T², and SPE/Q for temperature, pH, dissolved oxygen, feed flow, and agitation.")
-    st.info("Historical development-data comparison · Advisory only · Empirical reference limits · No manufacturing validation")
-    st.caption("This page calibrates and compares historical development sensor batches from Overview. The separate MON- monitoring demo population is used by Data Acquisition, Process Monitoring and operational reliability review.")
+    st.info("Historical reference calibration and acquired sensor monitoring · Advisory only · Empirical limits · No manufacturing validation")
+    st.caption("Fit the PCA reference using historical development batches. Acquired mode applies that fitted scaler, PCA and limits to the same received sensor collection used by Process Monitoring.")
     config = st.session_state.get("simulation_config", SimulationConfig())
     context = json.dumps(asdict(config), sort_keys=True)
     if st.session_state.get("mspc_data_context") != context:
-        for key in ("mspc_model", "mspc_fit_batches", "mspc_limit_batches", "mspc_components", "mspc_quantile", "mspc_batches", "mspc_inspect_batch", "mspc_inspect_sample"):
+        for key in ("mspc_model", "mspc_reference_config", "mspc_loaded_reference", "mspc_fit_batches", "mspc_limit_batches", "mspc_components", "mspc_quantile", "mspc_batches", "mspc_inspect_batch", "mspc_inspect_sample"):
             st.session_state.pop(key, None)
         st.session_state["mspc_data_context"] = context
     dataset = load_dataset(config)
+    root = Path(st.session_state.get("multivariate_state_root", DEFAULT_PCA_ROOT))
+    with st.expander("Saved historical PCA references"):
+        references = list_pca_references(root)
+        if references:
+            identity = st.selectbox("Saved PCA reference", list(references), format_func=lambda value: references[value]["reference"]["model_id"] + " · " + value[:8], key="mspc_saved_reference")
+            if st.button("Load saved PCA reference", key="mspc_load_reference"):
+                try:
+                    loaded, metadata = load_pca_reference(root, identity)
+                    st.session_state["mspc_model"] = loaded
+                    st.session_state["mspc_loaded_reference"] = metadata
+                    st.session_state["mspc_reference_config"] = metadata["historical_config"]
+                    for key in ("mspc_fit_batches", "mspc_limit_batches", "mspc_components", "mspc_quantile"):
+                        st.session_state.pop(key, None)
+                except (ValueError, OSError, KeyError) as error:
+                    st.error(f"Saved PCA reference is unavailable: {error}")
+        else:
+            st.caption("No saved PCA reference found. Fit historical reference data first, then save it explicitly below.")
+    if mode == views[1] and st.session_state.get("mspc_model") is not None:
+        model = st.session_state["mspc_model"]
+        st.caption(f"Historical fitted reference: {model.model_id}. Acquired mode never refits its scaler, components or limits.")
+        save_reference_control(model, config, root)
+        render_acquired_pca(model)
+        return
+    if mode == views[1]:
+        stream = st.session_state.get("stream_monitoring_session")
+        if stream is not None:
+            stream.pause()
+        st.info("Prepare or load a historical PCA reference first. Shared acquisition is paused during reference setup; its received records and cursor are retained.")
     try:
         default = default_reference_partition(dataset.batches)
     except ValueError as error:
@@ -96,6 +150,8 @@ def main():
     nominal = dataset.batches.loc[dataset.batches.scenario.eq(NOMINAL_SCENARIO), "batch_id"].tolist()
     saved_model = st.session_state.get("mspc_model")
     saved_partition = saved_model.partition if saved_model else default
+    if not set(saved_partition.fit_batches + saved_partition.limit_batches).issubset(nominal):
+        saved_partition = default
     with st.sidebar:
         st.header("Reference calibration")
         st.caption(f"Overview: seed {config.seed}, {config.n_batches} batches, {config.duration_h:g} h. Inputs are observed sensors only.")
@@ -113,6 +169,7 @@ def main():
         st.session_state.pop("mspc_batches", None)
         try:
             st.session_state["mspc_model"] = fit_process_monitor(dataset.sensors, dataset.batches, partition=partition, n_components=components, quantile=quantile)
+            st.session_state["mspc_reference_config"] = asdict(config)
         except (ValueError, TypeError, FloatingPointError) as error:
             st.error(f"Reference calibration could not complete: {error}")
     model = st.session_state.get("mspc_model")
@@ -121,6 +178,11 @@ def main():
         with st.expander("Information", expanded=True):
             render_learning()
         render_explanation(None, key="multivariate", empty_message="Fit a reference monitoring model to explain its recorded limits and chart statistics.")
+        return
+
+    save_reference_control(model, config, root)
+    if mode == views[1]:
+        render_acquired_pca(model)
         return
 
     scored = score_process_monitor(model, dataset.sensors)
@@ -138,7 +200,7 @@ def main():
     if evaluation.status.ne("scored").any():
         st.warning("Some evaluation inputs are unscorable. Their statistics are gaps and their alarm state is unknown.")
     st.warning("Empirical limits pool the whole time-varying batch trajectory. Few batches, temporal correlation, two charts, and repeated testing prevent interpreting the quantile as a guaranteed false-alarm rate.")
-    selected = st.multiselect("Batches in comparison charts", summary.batch_id.tolist(), default=list(model.partition.evaluation_batches), key="mspc_batches")
+    selected = st.multiselect("Batches in comparison charts", summary.batch_id.tolist(), default=[batch for batch in model.partition.evaluation_batches if batch in summary.batch_id.tolist()], key="mspc_batches")
     view = scored[scored.batch_id.isin(selected)]
     monitor_tab, pca_tab, sources_tab, learn_tab = st.tabs(["Control charts & process trends", "PCA pattern & residuals", "Calibration & observations", "Information"])
     with monitor_tab:
@@ -163,7 +225,8 @@ def main():
         loadings = pd.DataFrame(model.pca.components_.T, index=pd.Index(SENSOR_COLUMNS, name="sensor"), columns=explained.component)
         st.dataframe(loadings.reset_index(), hide_index=True, width="stretch", key="mspc_loadings")
         st.caption("Loadings are unit-length eigenvectors in standardized sensor coordinates. Signs can reverse without changing T² or Q. These components were fitted only on the PCA fitting batches.")
-        batch = st.selectbox("Residual inspection batch", summary.batch_id.tolist(), index=summary.batch_id.tolist().index(model.partition.evaluation_batches[0]), key="mspc_inspect_batch")
+        default_batch = next((batch for batch in model.partition.evaluation_batches if batch in summary.batch_id.tolist()), summary.batch_id.iloc[0])
+        batch = st.selectbox("Residual inspection batch", summary.batch_id.tolist(), index=summary.batch_id.tolist().index(default_batch), key="mspc_inspect_batch")
         observations = scored[scored.batch_id.eq(batch)]
         sample = st.selectbox("Residual inspection sample", observations.sample_id.tolist(), key="mspc_inspect_sample")
         observation = observations[observations.sample_id.eq(sample)]

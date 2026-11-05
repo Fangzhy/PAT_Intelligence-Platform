@@ -37,9 +37,10 @@ calibration seeds and CV-only evidence labels.
    operational review of MON- observations. That review does not create a new
    independent-test record.
 
-Multivariate Monitoring currently calibrates and compares historical Overview
-sensor batches. Acquisition and Process Monitoring now share one collector;
-the multivariate page remains a historical comparison.
+Multivariate Monitoring fits its PCA reference using historical Overview sensor
+batches. Its **Acquired sensor monitoring** mode then projects received sensors
+from the same collector used by Acquisition and Process Monitoring. Incoming
+observations never recalibrate the PCA reference or limits.
 
 ## Provenance contract
 

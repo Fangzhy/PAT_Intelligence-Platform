@@ -377,6 +377,8 @@ def render_acquired_stream_page(config, acquisition_view=False):
         st.session_state["stream_monitoring_session"] = AcquiredStreamSession(signature)
         st.session_state["stream_monitor_adapter"] = adapter
     st.session_state["acquisition_session"] = st.session_state["stream_monitoring_session"].acquisition
+    st.session_state["stream_monitor_workspace"] = {"context": context, "models": models, "monitoring": monitoring,
+        "rules": rules, "limit": limit, "signature": signature}
     st.session_state["stream_monitor_preferences"] = {"source": source, "batch": batch, "faults": faults, "url": url, "pace": pace, "limit": limit,
         "http_channels": int(http_channels), "http_duration": http_duration, "models": chosen, "wait": wait, "enforce": enforce,
         "max_age": max_age, "silence": silence, "sensor_age": sensor_age, "domain": domain}
