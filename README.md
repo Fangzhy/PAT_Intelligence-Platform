@@ -35,6 +35,14 @@ Process Monitoring uses an explicit **Capture visible view for explanation**
 step for replay, historical review, and acquired streams. Captures are labeled
 historical; polling never automatically sends a request to the LLM.
 
+**Prediction reliability** connects Predictive Modeling, Process Monitoring,
+and Model Reliability. Newly trained models save declared concentration and
+decision ranges before test disclosure. Spectral PLS models also save empirical
+score-distance and reconstruction-residual gates. Range-specific errors retain
+all observations alongside eligible-only errors and coverage. Older artifacts
+remain explicitly unassessed for the new checks; existing frozen tests stay
+sealed. See the [workflow and learning guide](docs/prediction_reliability_learning_guide.md).
+
 Data Integration's source selector includes an **Open Data Acquisition** shortcut.
 Acquisition keeps its **Test mode** badge visible and sends a detached snapshot
 back to integration. Source/adapter code remains separate from the page UI.

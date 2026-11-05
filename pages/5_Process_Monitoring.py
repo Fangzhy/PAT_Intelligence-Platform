@@ -17,6 +17,7 @@ from src.model_registry import DEFAULT_MONITORING_MODELS, discover_models, load_
 from src.modeling_data import SENSOR_COLUMNS, TARGETS
 from src.modeling_storage import DEFAULT_STATE_ROOT
 from src.monitoring import DEFAULT_PREDICTION_LIMITS, DEFAULT_SENSOR_LIMITS, MonitoringSettings
+from src.prediction_reliability_ui import render_model_policy, render_observation_reliability
 from src.replay import MonitoringSession, known_assays, monitoring_report_zip, replay_batch, replay_fault_example
 from src.runtime import apply_page_runtime
 from src.llm_bootstrap import refresh_legacy_llm_modules
@@ -112,6 +113,7 @@ def render_monitor(batch, models, settings, mode, review_elapsed, context):
         return
 
     latest = history.iloc[-1]
+    render_observation_reliability(latest, targets=TARGETS, key="process")
     st.caption(f"Sample {latest.sample_id} · Simulated measurement time: {latest.measurement_timestamp} · References available through {cutoff}")
     sensor_cards = st.columns(5)
     for index, column in enumerate(SENSOR_COLUMNS):
@@ -246,6 +248,8 @@ def main():
             else:
                 try:
                     models[target] = cached_model(reference)
+                    st.write(f"**{target} prediction policy**")
+                    render_model_policy(models[target].pipeline, key=f"process_{target.lower()}")
                 except ValueError as error:
                     models[target] = None
                     st.warning(f"{target} pipeline unavailable: {error}")

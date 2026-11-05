@@ -17,6 +17,7 @@ from src.model_registry import DEFAULT_MONITORING_MODELS, discover_models, load_
 from src.modeling_data import SENSOR_COLUMNS, TARGETS
 from src.modeling_storage import DEFAULT_STATE_ROOT
 from src.monitoring import MonitoringSettings, alarm_state
+from src.prediction_reliability_ui import render_model_policy, render_observation_reliability
 from src.stream_monitoring import AcquiredStreamSession, StreamSettings, acquired_stream_report_zip, freshness_errors
 from src.test_stream_source import PacedTestAdapter
 from src.runtime import public_demo
@@ -140,6 +141,7 @@ def render_stream(context, models, monitoring, rules, limit, signature):
             cards[index].caption(f"{latest[f'{prefix}_status']} · {latest[f'{prefix}_model_version']} · Inference {latest[f'{prefix}_prediction_time_utc']}")
             if latest[f"{prefix}_flags"]:
                 cards[index].warning(latest[f"{prefix}_flags"])
+        render_observation_reliability(latest, targets=TARGETS, key="stream", current=current_ok)
         for flag in fresh_flags:
             st.warning(flag)
     process_tab, predictions_tab, audit_tab = st.tabs(["Acquired sensors", "Online predictions", "Quality & delivery audit"])
@@ -246,6 +248,9 @@ def render_acquired_stream_page(config):
             chosen[target] = selected
             try:
                 models[target] = _model(options[selected]) if options[selected] else None
+                if models[target] is not None:
+                    st.write(f"**{target} prediction policy**")
+                    render_model_policy(models[target].pipeline, key=f"stream_{target.lower()}")
             except ValueError as error:
                 models[target] = None
                 st.warning(str(error))

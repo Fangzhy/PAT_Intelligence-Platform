@@ -123,7 +123,12 @@ def test_nominal_history_contains_actual_model_estimates_and_postbatch_assays(tm
     assert not app.exception
     history = history_table(app)
     assert np.isfinite(history.iloc[-1].glucose_prediction_g_l)
-    assert np.isfinite(history.iloc[-1].lactate_prediction_g_l)
+    assert history.iloc[-1].lactate_status == "outside_reliability_limits"
+    assert not history.iloc[-1].lactate_reliability_eligible
+    assert np.isnan(history.iloc[-1].lactate_prediction_g_l)
+    assert history.iloc[-1].lactate_flags
+    accepted = history.lactate_status.eq("ok")
+    assert accepted.any() and np.isfinite(history.loc[accepted, "lactate_prediction_g_l"]).all()
     app.slider(key="monitor_review_time").set_value(app.slider(key="monitor_review_time").max).run()
     assert not app.exception
     assert len(history_table(app)) == 73

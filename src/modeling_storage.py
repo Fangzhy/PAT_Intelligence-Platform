@@ -24,6 +24,7 @@ import xgboost
 
 from src.modeling import PROTOCOL_VERSION, TrainingStudy, evaluate_holdout, pls_diagnostics
 from src.modeling_data import BatchPartition
+from src.prediction_reliability import study_range_performance
 
 
 DEFAULT_STATE_ROOT = Path(__file__).resolve().parents[1] / ".pat_state" / "modeling"
@@ -87,6 +88,7 @@ def _operation_lock(folder):
 
 
 def study_manifest(study):
+    policy = getattr(study.results[study.winner_id].estimator, "prediction_policy_", None)
     return {
         "protocol": PROTOCOL_VERSION, "study_id": study.study_id, "cohort_id": study.cohort_id,
         "target": study.target, "target_unit": "g/L", "partition": asdict(study.partition),
@@ -97,6 +99,7 @@ def study_manifest(study):
         "cv_interpretation": "Pooled OOF errors used for tuning; selection makes these optimistic. Independent batch test is a separate frozen step.",
         "winner_policy": "Choose by RMSECV before test disclosure, never by RMSEP.",
         "label_source": "Sparse offline assay references paired at collection time, not simulated truth.",
+        "prediction_reliability": policy.summary() if policy is not None else {"status": "not_assessed"},
         "limitations": "Synthetic/appropriately licensed public-data demonstration; not manufacturing validation or CQA prediction.",
     }
 
@@ -193,6 +196,10 @@ def cv_predictions(study):
         rows["prediction_g_l"] = result.oof_prediction
         rows["residual_g_l"] = result.oof_prediction - study.training_reference.to_numpy()
         rows["case_id"] = case_id
+        diagnostics = getattr(result, "oof_reliability", None)
+        if diagnostics is not None:
+            for column in diagnostics:
+                rows[column] = diagnostics[column]
         frames.append(rows)
     return pd.concat(frames)
 
@@ -206,6 +213,7 @@ def study_report_zip(study, evaluation=None):
         archive.writestr("cv_comparison.csv", study.comparison.to_csv(index=False))
         archive.writestr("cv_predictions.csv", cv_predictions(study).to_csv(index=True))
         archive.writestr("cv_folds.csv", study.folds.to_csv(index=False))
+        archive.writestr("prediction_reliability/range_performance.csv", study_range_performance(study, evaluation).to_csv(index=False))
         archive.writestr("failed_experiments.csv", study.failures.to_csv(index=False))
         for case_id, result in study.results.items():
             for name in ("tuning", "fold_scores", "feature_stability", "robustness"):

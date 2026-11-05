@@ -230,3 +230,12 @@ Official references: [model fallback](https://openrouter.ai/docs/guides/routing/
 [rate limits](https://openrouter.ai/docs/api_reference/limits),
 [structured outputs](https://openrouter.ai/docs/guides/features/structured-outputs),
 [provider policies](https://openrouter.ai/docs/guides/privacy/provider-logging).
+
+## Prediction reliability evidence
+
+The explanation summaries can include the saved model's declared/decision
+ranges, applicability-assessment status, decision-range all-row errors and
+coverage, and captured applicability/range rejection counts. These are
+deterministic aggregate facts. AI does not set gates, restore rejected
+predictions, calibrate limits, or evaluate the independent test. Declared demo
+ranges and empirical PLS screens do not establish manufacturing validation.

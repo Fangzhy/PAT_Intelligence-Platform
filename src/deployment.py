@@ -23,6 +23,7 @@ from src.data_generation import SimulationConfig, generate_dataset
 from src.model_registry import discover_models, load_model
 from src.modeling_storage import _atomic_json, _json_text, _operation_lock
 from src.monitoring import MonitoringSettings, predict_observation
+from src.prediction_reliability import reliability_record
 from src.replay import replay_batch
 
 
@@ -92,7 +93,8 @@ def predict_frame(bundle, inputs, settings=None, *, max_rows=1000):
             row.measurement_timestamp, row.sensor_timestamp, settings)
         records.append({"source_row": position + 1, "sample_id": row.sample_id, "batch_id": row.batch_id,
             "prediction_g_l": result.prediction_g_l, "status": result.status, "flags": "; ".join(result.flags),
-            "model_version": result.model_version, "prediction_time_utc": result.prediction_time_utc, "max_abs_z": result.max_abs_z})
+            "model_version": result.model_version, "prediction_time_utc": result.prediction_time_utc, "max_abs_z": result.max_abs_z,
+            **reliability_record(result)})
     return pd.DataFrame(records)
 
 
@@ -124,6 +126,15 @@ when already recorded; no test is evaluated by this release operation.
 CV metrics: {json.dumps(metadata.get('cv_metrics', {}), sort_keys=True)}
 
 Independent metrics: {json.dumps(metadata.get('holdout_metrics', {}), sort_keys=True)}
+
+## Prediction reliability policy
+
+{json.dumps(metadata.get('prediction_reliability', {'status': 'not_assessed'}), sort_keys=True)}
+
+Declared ranges are provisional demonstration policies, separate from advisory
+alarm bounds. PLS limits are training empirical input-space diagnostics, not a
+validated method range, a prediction interval, or a false-alarm guarantee.
+An older model without this policy remains explicitly unassessed.
 
 ## Limits
 

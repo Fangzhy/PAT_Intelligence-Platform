@@ -71,7 +71,12 @@ def test_historical_stream_inference_has_frozen_history_and_rule_changes_reset(t
     assert not app.exception
     assert [metric.value for metric in app.metric[:4]] == ["Complete", "53", "25", "0"]
     before = history(app).copy()
-    assert before.glucose_status.eq("ok").all()
+    assert set(before.glucose_status) == {"ok", "outside_reliability_limits"}
+    accepted = before.glucose_status.eq("ok")
+    assert np.isfinite(before.loc[accepted, "glucose_prediction_g_l"]).all()
+    assert before.loc[~accepted, "glucose_prediction_g_l"].isna().all()
+    assert before.loc[~accepted, "glucose_flags"].str.len().gt(0).all()
+    assert (~before.loc[~accepted, "glucose_reliability_eligible"]).all()
     app.selectbox(key="stream_sensor").select("ph").run()
     assert not app.exception
     pd.testing.assert_frame_equal(history(app), before)
