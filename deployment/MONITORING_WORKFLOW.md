@@ -10,6 +10,9 @@ New synthetic monitoring population / compatible JSON API
   -> Data Acquisition -> saved integration and quality rules
   -> saved preprocessing and scaler -> saved prediction model
   -> Process Monitoring: input, processing, prediction and audit results
+
+Received sensors -> historical fitted PCA scaler/components/limits
+  -> Multivariate Monitoring: T², SPE and sensor contributions
 ```
 
 ## Run the workflow
@@ -35,8 +38,13 @@ New synthetic monitoring population / compatible JSON API
    source/receipt times and quality decisions.
 6. Open **Process Monitoring**. The app selects acquired-stream mode and keeps
    the same collector, received records, cursor and existing inference attempts.
-   Active polling can continue between these two views. Other analysis pages
-   pause collection. There is no detached handoff to the development page.
+   Active polling can continue between these two views and acquired Multivariate
+   Monitoring after its historical reference has been fitted/loaded. Other
+   analysis pages pause collection. There is no detached development handoff.
+
+The [acquired PCA guide](ACQUIRED_PCA_MONITORING.md) describes the separate PCA
+reference calibration and shared-sensor projection. Each model uses its own
+fitted preprocessing; PCA never calls the glucose/lactate prediction pipeline.
 
 ## What Process Monitoring shows
 

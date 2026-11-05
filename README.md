@@ -55,8 +55,8 @@ Data Acquisition, Process Monitoring replay/streams, and operational reliability
 review use **development seed + 3,000,017** (default **3,000,059**), with **MON-**
 batch/sample IDs. Source roles, seeds, dataset identity and generator settings
 travel in batch metadata and exported reports. See [data populations and
-provenance](deployment/DATA_SOURCES.md). Multivariate Monitoring currently
-remains a historical development-data comparison.
+provenance](deployment/DATA_SOURCES.md). Multivariate Monitoring uses historical
+reference calibration and can project the same newly acquired sensor collection.
 
 ## Start locally in VS Code
 
@@ -329,6 +329,20 @@ from separate nominal **B005**, and evaluates untouched **B004 and B006**.
 The split is by whole batch. Chart controls never refit the model. Calibration
 survives page navigation within the session; changing the Overview simulation
 requires a new fit. Navigating here also pauses Phase 5 replay.
+
+For new incoming data, use **Acquired sensor monitoring** on the same page.
+It reads the existing acquisition session and applies the fitted historical
+scaler, PCA components and chart limits without refitting. Acquisition controls
+continue the same collector and cursor across Data Acquisition, Process
+Monitoring and this acquired PCA view. Quality failures, stale-on-arrival rows
+and conflicts are gaps; later staleness/read failures withhold current cards
+while preserving valid historical scores. SPE contributions use the PCA
+reference, independently of glucose/lactate preprocessing.
+
+Use **Save fitted historical PCA reference** to persist a reference explicitly,
+and **Load saved PCA reference** to reuse it after restarting. No reference is
+loaded or fitted automatically. Read the [acquired PCA workflow guide](deployment/ACQUIRED_PCA_MONITORING.md)
+for setup, freshness semantics, exports and checks.
 
 Limits are empirical observation-level quantiles, not validated false-alarm
 probabilities. This initial PCA pools time-varying batch trajectories; temporal
