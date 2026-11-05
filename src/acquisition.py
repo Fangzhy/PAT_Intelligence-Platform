@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 
 from src.data_integration import REQUIRED_COLUMNS, SENSOR_RANGES, SourceTables, _utc_timestamp
+from src.demo_data import PROVENANCE_COLUMNS, source_provenance
 
 
 SCHEMA_VERSION = 1
@@ -28,7 +29,7 @@ AUDIT_COLUMNS = ["sequence", "event_id", "source", "received_at_utc", "status", 
 OPTIONAL_COLUMNS = {
     "sensors": {"elapsed_time_h"}, "raman": set(),
     "assays": {"collection_elapsed_time_h"},
-    "batches": {"scenario", "description", "disturbance_start_h"},
+    "batches": {"scenario", "description", "disturbance_start_h", *PROVENANCE_COLUMNS},
 }
 
 
@@ -184,7 +185,7 @@ class LocalHTTPAdapter:
     def poll(self, cursor, limit):
         _integer(cursor, 0, 10**12, "Cursor")
         _integer(limit, 1, MAX_PAGE_SIZE, "Page size")
-        request = Request(f"{self.base_url}/v1/records?{urlencode({'after': cursor, 'limit': limit})}", headers={"Accept": "application/json"}, method="GET")
+        request = Request(f"{self.base_url}/v1/records?{urlencode({'after': cursor, 'limit': limit})}", headers={"Accept": "application/json", **getattr(self, "headers", {})}, method="GET")
         try:
             with build_opener(ProxyHandler({}), _NoRedirects()).open(request, timeout=self.timeout_seconds) as response:
                 if response.headers.get_content_type() != "application/json":
@@ -200,6 +201,31 @@ class LocalHTTPAdapter:
             return page
         except (HTTPError, URLError, OSError, UnicodeError, ValueError, KeyError, TypeError) as error:
             raise AcquisitionError(f"Local test source read failed: {error}") from error
+
+
+class MonitoringAPIAdapter(LocalHTTPAdapter):
+    """Explicit local-operator JSON API, using the documented polling contract.
+
+    A device-specific bridge must map vendor records to this contract. Credentials
+    are not put in URLs or source contexts; an optional bearer token is passed
+    only in the Authorization header. Redirects remain disabled.
+    """
+    def __init__(self, base_url, *, bearer_token=None, timeout_seconds=2.0):
+        try:
+            url = urlsplit(base_url)
+            if url.scheme not in ("http", "https") or not url.hostname or url.username is not None or url.password is not None or url.query or url.fragment:
+                raise ValueError("Use an HTTP(S) API base URL without embedded credentials, query or fragment.")
+            if url.scheme == "http" and url.hostname not in ("127.0.0.1", "localhost", "::1"):
+                raise ValueError("Use HTTPS for a remote monitoring API.")
+            if not np.isfinite(timeout_seconds) or not 0 < timeout_seconds <= 5:
+                raise ValueError("API timeout must be greater than zero and at most five seconds.")
+            if bearer_token and ("\r" in bearer_token or "\n" in bearer_token):
+                raise ValueError("API token contains invalid header characters.")
+        except (ValueError, TypeError, AttributeError) as error:
+            raise AcquisitionError(str(error)) from error
+        self.base_url = base_url.rstrip("/")
+        self.timeout_seconds = float(timeout_seconds)
+        self.headers = {"Authorization": f"Bearer {bearer_token}"} if bearer_token else {}
 
 
 def normalize_record(record):
@@ -355,6 +381,7 @@ def acquisition_report_zip(session, context):
             archive.writestr(f"sources/{source}.csv", frame.to_csv(index=False))
         archive.writestr("delivery_audit.csv", session.ledger().to_csv(index=False))
         archive.writestr("manifest.json", _json_text({"schema_version": SCHEMA_VERSION, "source_id": session.source_id,
+            "data_provenance": source_provenance(session.snapshot().batches),
             "cursor": session.cursor, "complete": session.complete, "last_success_utc": session.last_success_utc,
             "last_error": session.last_error, "context": context,
             "scope": "Only polled records; source time and receipt time are distinct. Test acquisition, no equipment control.",

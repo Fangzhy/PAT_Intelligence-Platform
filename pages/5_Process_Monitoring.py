@@ -11,7 +11,9 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.app_data import load_dataset
+from src.app_data import load_monitoring_dataset
+from src.demo_data import demo_provenance, monitoring_demo_config
+from src.demo_data_ui import render_demo_provenance
 from src.data_generation import SimulationConfig
 from src.model_registry import DEFAULT_MONITORING_MODELS, discover_models, load_model, prepare_demo_models
 from src.modeling_data import SENSOR_COLUMNS, TARGETS
@@ -166,7 +168,7 @@ def main():
     st.set_page_config(page_title="PAT | Process Monitoring", page_icon="⏱️", layout="wide")
     apply_page_runtime()
     acquisition = st.session_state.get("acquisition_session")
-    if acquisition is not None:
+    if acquisition is not None and st.session_state.get("stream_monitoring_session") is None:
         acquisition.running = False
     st.caption("PAT INTELLIGENCE PLATFORM")
     st.title("Monitor process measurements and model estimates.")
@@ -191,10 +193,12 @@ def main():
     stream = st.session_state.get("stream_monitoring_session")
     if stream is not None:
         stream.pause()
-    dataset = load_dataset(config)
+    dataset = load_monitoring_dataset(config)
+    provenance = demo_provenance(config, monitoring=True)
+    render_demo_provenance(provenance)
     with st.sidebar:
         st.header("Replay setup")
-        st.caption(f"Overview configuration: seed {config.seed}, {config.n_batches} batches, {config.duration_h:g} h. No equipment connection is used.")
+        st.caption(f"Monitoring demo: seed {monitoring_demo_config(config).seed}, {config.n_batches} batches, {config.duration_h:g} h. Overview development seed: {config.seed}. No equipment connection is used.")
         batches = dataset.batches.batch_id.tolist()
         selected_batch = st.selectbox("Replay batch", batches, index=batches.index(preferences.get("batch")) if preferences.get("batch") in batches else 0, key="monitor_batch")
         rate = st.selectbox("Observations per second", [0.5, 1.0, 2.0, 5.0, 10.0], index=[0.5, 1.0, 2.0, 5.0, 10.0].index(preferences.get("rate", 1.0)), key="monitor_rate")
@@ -270,7 +274,7 @@ def main():
     result_elapsed = (batch.assays.result_timestamp - start).dt.total_seconds() / 3600
     review_max = float(np.ceil(max(float(batch.metadata.elapsed_time_h.max()), float(result_elapsed.max())) * 2) / 2)
     review_elapsed = st.slider("Historical review elapsed time (h)", 0.0, review_max, 0.0, step=0.5, key="monitor_review_time") if mode == "Historical review" else 0.0
-    context = {"simulation": asdict(config), "batch_id": selected_batch, "fault_example": faults, "mode": mode,
+    context = {"simulation": asdict(config), "data_provenance": provenance, "batch_id": selected_batch, "fault_example": faults, "mode": mode,
         "models": {target: model.version if model else "Unavailable" for target, model in models.items()},
         "artifacts": {target: {"identity": model.metadata["artifact_identity"], "stamp": model.metadata["artifact_stamp"]} if model else None for target, model in models.items()}}
     signature = sha256(json.dumps({**context, "rules": asdict(settings)}, sort_keys=True).encode()).hexdigest()

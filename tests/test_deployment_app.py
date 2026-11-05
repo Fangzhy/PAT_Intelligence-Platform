@@ -105,9 +105,10 @@ def test_public_app_visits_all_pages_without_model_training(monkeypatch):
     for page in sorted((ROOT / "pages").glob("*.py")):
         app.switch_page("pages/" + page.name).run()
         assert not app.exception, page.name
-    assert "Local HTTP test source" not in app.selectbox(key="acq_mode").options
+    assert "Local HTTP test source" not in app.selectbox(key="stream_source").options
+    assert "Raman HTTP API" not in app.selectbox(key="stream_source").options
     app.switch_page("pages/5_Process_Monitoring.py").run()
-    assert app.radio(key="monitor_mode").value == "Replay"
+    assert app.radio(key="monitor_mode").value == "Acquired stream"
     app.radio(key="monitor_mode").set_value("Acquired stream").run()
     assert not app.exception
     assert "Local HTTP test source" not in app.selectbox(key="stream_source").options

@@ -17,9 +17,9 @@ The sidebar follows the data workflow, with Overview first and named sections:
 | Section | Pages in order |
 |---|---|
 | Overview | Overview |
-| Data | Data Acquisition → Data Integration & Quality |
+| Data | Data Integration & Quality |
 | Analytics | Spectral Analytics → Predictive Modeling |
-| Monitoring | Process Monitoring → Multivariate Monitoring → Model Reliability |
+| Monitoring | Data Acquisition → Process Monitoring → Multivariate Monitoring → Model Reliability |
 | Lifecycle | Deployment & Reporting |
 
 Optional **Explain these results · AI or local summary** panels on Spectral
@@ -43,9 +43,20 @@ all observations alongside eligible-only errors and coverage. Older artifacts
 remain explicitly unassessed for the new checks; existing frozen tests stay
 sealed. See the [workflow and learning guide](docs/prediction_reliability_learning_guide.md).
 
-Data Integration's source selector includes an **Open Data Acquisition** shortcut.
-Acquisition keeps its **Test mode** badge visible and sends a detached snapshot
-back to integration. Source/adapter code remains separate from the page UI.
+**Data Integration & Quality** prepares historical development data for training.
+**Monitoring → Data Acquisition** receives new monitoring inputs. It shares one
+collector, cursor, delivery audit and prediction history with **Process
+Monitoring**; moving between these two pages retains the collection. Monitoring
+inputs are not published into the development source selector.
+
+Historical development and monitoring demos use separate populations. Overview,
+spectral exploration and modeling use the development seed (default **42**).
+Data Acquisition, Process Monitoring replay/streams, and operational reliability
+review use **development seed + 3,000,017** (default **3,000,059**), with **MON-**
+batch/sample IDs. Source roles, seeds, dataset identity and generator settings
+travel in batch metadata and exported reports. See [data populations and
+provenance](deployment/DATA_SOURCES.md). Multivariate Monitoring currently
+remains a historical development-data comparison.
 
 ## Start locally in VS Code
 
@@ -205,11 +216,11 @@ test outcomes, limitations, and three interview questions with sample answers.
 
 ## Phase 5: replay monitoring with saved model inference
 
-Open **Process Monitoring** in the sidebar. The page replays the Overview's
-synthetic sensor/Raman observations, using saved glucose and lactate pipelines.
+Open **Process Monitoring** in the sidebar. The page replays a separate monitoring
+demo population with MON- identities, using saved glucose and lactate pipelines.
 It contains no physical equipment connection or control action.
 
-1. Choose a batch and inspect the saved model selections. Default separate demo
+1. Choose a MON- batch and inspect the saved model selections. Default separate demo
    models have been prepared locally. **Prepare / reuse saved demo models** can
    create matching artifacts for another Overview configuration; it is an explicit
    training action on a different calibration seed, never part of ordinary replay.
@@ -257,8 +268,10 @@ checks → saved preprocessing/model pipeline → versioned predictions and aler
 4. Inspect pending inputs, quality/domain flags, available assays, and the
    versioned prediction history. Pause/reset or download the stream report.
 
-The fresh fixture releases records over real time with current UTC timestamps;
-one original simulated hour takes one real second by default. A separate HTTP
+The fresh fixture releases independent monitoring-demo measurements over real
+time with current UTC timestamps. Its seed differs from Overview's development
+seed; timestamp rebasing itself changes no measurements.
+One original simulated hour takes one real second by default. A separate HTTP
 producer can provide the same paced stream:
 
 ```powershell
@@ -266,8 +279,12 @@ producer can provide the same paced stream:
 ```
 
 Select **Local HTTP test source**, use `http://127.0.0.1:8765`, and match the
-HTTP demo model configuration (71 channels, 24 h for this command). The default
-server without `--stream` remains a historical source; use the explicit
+HTTP demo model configuration (71 channels, 24 h for this command). The producer
+treats `--seed` as the development seed and derives its monitoring seed;
+`--seed 42` produces monitoring seed 3000059 and MON-B001. Its batch record carries
+the actual generation provenance; external HTTP sources without those fields
+remain unrecorded.
+The server without `--stream` remains a historical source; use the explicit
 historical setting/freshness override when reviewing those old timestamps.
 
 Spectra wait briefly for missing sensors or batch metadata. Matching never uses
@@ -276,12 +293,15 @@ out-of-domain, or mismatched-axis inputs yield gaps. Later conflicts withdraw
 affected published estimates while preserving original estimates and an audit.
 Assays are delayed display/reliability references and are never model inputs.
 
-Monitoring owns its own acquisition cursor and pauses on navigation. Current
+Acquisition and Process Monitoring share one acquisition cursor. Other analysis
+pages pause collection. Current
 prediction cards are withheld on read failure, source silence, or stale inputs;
-historical results remain visible in their audit. Replay/Historical review and
-Data Acquisition's detached integration snapshots remain available. The
-**Use this source in Process Monitoring** shortcut copies source settings without
-copying a collection cursor or silently disabling HTTP freshness checks.
+historical results remain visible in their audit. Replay/Historical review remain
+available. **Open Process Monitoring** shows the collection already received by
+Data Acquisition, including raw inputs, saved-rule integration/quality reports,
+saved preprocessing features, predictions, reference assays and rejection reasons.
+Newly trained models save integration and quality rules with their pipeline.
+See [the complete monitoring workflow](deployment/MONITORING_WORKFLOW.md).
 
 See the [acquired-stream learning guide](docs/acquired_stream_monitoring_learning_guide.md)
 for timing equations, examples, limitations, and tests. This is a complete test
@@ -371,57 +391,19 @@ Read the [Phase 7 learning guide](docs/phase_7_learning_guide.md) for equations,
 code examples, default numerical results, limitations, tests, and three
 interview questions with sample answers. No dependencies were added.
 
-## Optional extension: separate test acquisition adapters
+## Monitoring acquisition
 
-The original app had synthetic replay and CSV import, but no independent polling
-adapter. **Data Acquisition** now provides that prototype while preserving the
-simulator and existing monitoring pages.
+Open **Monitoring -> Data Acquisition** to receive new synthetic monitoring data
+or a compatible HTTP source. Select a saved pipeline and poll or start collection.
+**Open Process Monitoring** retains the same collection and displays raw inputs,
+saved integration/quality checks, saved preprocessing outputs and predictions.
 
-1. Open **Data → Data Acquisition** in the sidebar. Keep **In-app test source** selected
-   and click **Poll once**, or **Connect / start polling** for one poll per second.
-2. Inspect collected sensors, spectra, delayed assays, batch metadata, source
-   timestamps, receipt timestamps, and the delivery audit. Pause/reset as needed.
-3. Enable **Include test delivery faults**, apply settings, and poll. Identical
-   duplicate deliveries are suppressed; invalid timestamps/schema are quarantined;
-   missing numeric observations stay missing with quality flags.
-4. Click **Send snapshot to Data Integration**, then open Data Integration in
-   the sidebar. **Acquired test snapshot** is selected automatically. The normal
-   alignment/quality workflow runs on a detached snapshot; subsequent collection
-   does not silently change it. Spectral Analytics can use this Phase 2 handoff.
-5. Download the collected source CSVs, original delivery JSON audit, and cursor/
-   source manifest. Only polled records are included.
-
-To exercise the HTTP adapter against a separate local process, run another
-terminal at the project root:
-
-```powershell
-.\.venv\Scripts\python.exe -m src.test_acquisition_source --port 8765
-```
-
-Select **Local HTTP test source**, use `http://127.0.0.1:8765`, click **Apply
-source settings**, then poll. The default server serves a fixed 24 h synthetic
-batch with 71 Raman channels. Add `--faults` for delivery/quality examples.
-Stop it with **Ctrl+C**; failed reads pause the collector without advancing its
-cursor or deleting collected data. Restarting the identical source can resume;
-a changed source identity requires an explicit collection reset.
-
-Both adapters implement `poll(cursor, limit)` and return the same bounded JSON
-page contract. Collection handles source identity, duplicate/conflicting event
-IDs, channel consistency, schema/time validation, and numeric quality flags.
-The HTTP client is GET-only, limited to explicitly configured loopback test
-URLs, and uses a read timeout and response-size limit. Navigation pauses polling.
-
-The default source is historical test-record replay; `--stream` enables paced
-fresh-timestamp records and the acquired-stream monitoring workflow above.
-Actual equipment, OPC UA, and MQTT connectors remain future work. Measurement and laboratory result
-times remain separate from current receipt time. The session buffer is bounded
-at 10,000 deliveries; it is not a durable historian or exactly-once message
-system. The acquisition extension adds no dependencies or equipment control
-actions. Phase 8 deployment and reporting are described below.
-
-Read the [acquisition adapter learning guide](docs/acquisition_adapter_learning_guide.md)
-for the protocol, examples, extension points, limitations, tests, and three
-interview questions with sample answers.
+Development Data Integration accepts historical synthetic data or uploaded CSVs.
+Monitoring observations are not offered there as an acquired-snapshot source.
+Read the [complete monitoring workflow](deployment/MONITORING_WORKFLOW.md) for
+saved-rule behavior, the generic JSON API contract, authentication, exports and
+legacy-model limitations. A vendor-specific Raman mapping requires instrument
+API documentation.
 
 ## Project layout
 
@@ -461,7 +443,7 @@ pages/7_Model_Reliability.py     Frozen evidence, review clock, residuals, drift
 pages/9_Test_Acquisition.py      Optional in-app/HTTP polling lab and explicit Phase 2 handoff
 tests/test_data_generation.py   Scientific and data identity checks
 tests/test_app.py               Streamlit startup and interaction checks
-tests/test_navigation_app.py    Sidebar order, visible test mode, integration shortcut and state
+tests/test_navigation_app.py    Sidebar order, monitoring acquisition and development separation
 tests/test_data_integration.py  Time, provenance, missingness, and quality checks
 tests/test_integration_app.py   Navigation and integration page interactions
 tests/test_preprocessing.py     Known answers and training-only preprocessing
@@ -483,7 +465,7 @@ tests/test_reliability_storage.py Frozen reuse, holdout isolation, separate targ
 tests/test_reliability_app.py   Explicit preparation, time controls, saved studies, navigation
 tests/test_acquisition.py       Cursor/identity/quality contracts, source round trips, snapshot export
 tests/test_acquisition_http.py  Real loopback reads, timeouts, disconnects, invalid HTTP/JSON
-tests/test_acquisition_app.py   Controls, detached handoff, page navigation, visible connection errors
+tests/test_acquisition_app.py   Shared monitoring collection, page navigation, visible connection errors
 tests/test_stream_monitoring.py Online quality/alignment, freshness, no refit, pending/conflict decisions
 tests/test_stream_monitoring_app.py Source controls, saved predictions, stale cards, replay/navigation
 tests/test_stream_http.py       Fresh paced HTTP producer through saved inference end to end
@@ -545,12 +527,11 @@ constant/insufficient-data screens, training-reference isolation, guarded saved
 inference, report scope, source/axis checks, and earlier-phase navigation.
 The optional acquisition extension adds real loopback HTTP transport checks,
 atomic cursor progress, duplicate/conflict handling, malformed/changed-source
-recovery, buffer bounds, receipt/source time separation, and explicit snapshot
-handoff through existing integration without changing the simulator.
+recovery, buffer bounds, receipt/source time separation, and shared collection across acquisition/monitoring without changing development data.
 Acquired-stream checks add pending/expired alignment, same-batch backward sensor
 selection, wall-clock freshness/future bounds, true saved-pipeline predictions,
 no fitting or assay leakage, late-conflict invalidation, stale current-card
-withholding, fresh/idle HTTP transport, and independent replay/stream cursors.
+withholding, fresh/idle HTTP transport, and independent replay cursors and one shared acquisition/stream cursor.
 
 Phase 8 adds guarded batch inference, recorded evaluation downloads, immutable
 trusted model release ZIPs, integrity and reload-parity checks, per-visitor

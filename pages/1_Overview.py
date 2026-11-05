@@ -8,6 +8,8 @@ import streamlit as st
 from src.app_data import load_dataset
 from src.navigation import pause_monitoring_on_navigation
 from src.data_generation import SimulationConfig
+from src.demo_data import demo_provenance
+from src.demo_data_ui import render_demo_provenance
 from src.runtime import apply_page_runtime, public_demo
 
 
@@ -64,6 +66,8 @@ def main() -> None:
     config = SimulationConfig(n_batches=n_batches, duration_h=duration, sample_interval_h=interval, seed=seed, n_wavenumbers=saved_config.n_wavenumbers)
     st.session_state["simulation_config"] = config
     dataset = load_dataset(config)
+    render_demo_provenance(demo_provenance(config))
+    st.caption("This historical development population supplies modeling data. Acquisition and Process Monitoring use a separate monitoring demo population with its own seed and MON- identities.")
     batch_ids = dataset.batches["batch_id"].tolist()
     color_map = dict(zip(batch_ids, COLORS))
     selected = st.sidebar.multiselect("Batches to explore", batch_ids, default=batch_ids, key="batch_filter")

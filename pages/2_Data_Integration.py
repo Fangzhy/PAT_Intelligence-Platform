@@ -5,6 +5,7 @@ import plotly.express as px
 import streamlit as st
 
 from src.app_data import load_dataset
+from src.demo_data_ui import render_received_provenance
 from src.navigation import pause_monitoring_on_navigation
 from src.data_generation import SimulationConfig
 from src.data_integration import (
@@ -31,11 +32,13 @@ def main():
 
     with st.sidebar:
         st.header("Integration inputs")
-        if st.session_state.pop("acquisition_handoff_requested", False):
-            st.session_state["integration_source"] = "Acquired test snapshot"
-        source_mode = st.radio("Data source", ["Synthetic dataset", "Upload CSV sources", "Acquired test snapshot"], key="integration_source")
-        if st.button("Open Data Acquisition", icon="📥", key="open_data_acquisition", width="stretch"):
-            st.switch_page("pages/9_Test_Acquisition.py")
+        if st.session_state.get("integration_source") == "Acquired test snapshot":
+            st.session_state.pop("integration_source", None)
+        sources_available = ["Synthetic dataset", "Upload CSV sources"]
+        remembered_source = st.session_state.get("development_source_preference", sources_available[0])
+        source_mode = st.radio("Data source", sources_available, index=sources_available.index(remembered_source) if remembered_source in sources_available else 0, key="integration_source")
+        st.session_state["development_source_preference"] = source_mode
+        st.caption("Historical development data for training and validation. Receive new monitoring inputs under Monitoring → Data Acquisition.")
     simulation_config = st.session_state.get("simulation_config", SimulationConfig())
     if source_mode == "Synthetic dataset":
         sources = sources_from_dataset(load_dataset(simulation_config))
@@ -44,13 +47,6 @@ def main():
         if demo:
             sources = demonstrate_quality_issues(sources)
             st.warning("Faulty copy for learning: missing pH and one Raman value, DO = 145%, an invalid sensor timestamp, a duplicated sensor row, and Raman timestamps shifted by +10 minutes. The Overview dataset is unchanged.")
-    elif source_mode == "Acquired test snapshot":
-        snapshot = st.session_state.get("acquisition_snapshot")
-        if snapshot is None:
-            st.warning("Collect records on Data Acquisition and send a snapshot to Data Integration first.")
-            return
-        sources = SourceTables(**{name: frame.copy(deep=True) for name, frame in snapshot["sources"].as_dict().items()})
-        st.caption(f"Explicit test acquisition snapshot · Source {snapshot['source_id']} · Delivery cursor {snapshot['cursor']} · Last receipt {snapshot['last_success_utc']}. Further collection does not change this published snapshot.")
     else:
         st.caption("Use synthetic or appropriately licensed public data. Upload all four CSVs with the documented schema. Timestamps require an explicit timezone, such as 2025-01-06T08:00:00Z.")
         uploaded = {}
@@ -70,6 +66,9 @@ def main():
             return
 
     # Include source-only batch IDs so missing metadata can be inspected too.
+    render_received_provenance(sources.batches)
+    if "data_role" in sources.batches and sources.batches.data_role.eq("monitoring_demo").any():
+        st.info("These are separate monitoring demo observations. Keep them separate from the historical development cohort when assessing saved-model behavior.")
     if any("batch_id" not in frame for frame in sources.as_dict().values()):
         st.error("Every source requires a batch_id column. See the CSV schema in docs/phase_2_learning_guide.md.")
         return

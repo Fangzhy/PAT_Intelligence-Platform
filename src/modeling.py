@@ -107,6 +107,8 @@ class TrainingStudy:
     winner_id: str
     input_columns: tuple[str, ...]
     axis: np.ndarray
+    data_provenance: dict = field(default_factory=dict)
+    input_policy: dict = field(default_factory=dict)
 
 
 def _base_model(name, config):
@@ -248,7 +250,8 @@ def train_study(dataset: ModelingDataset, partition: BatchPartition, cases=DEFAU
         raise ValueError("Decision range must be inside the declared concentration range.")
     folds = batch_folds(metadata["batch_id"], config.n_splits)
     payload = {"protocol": PROTOCOL_VERSION, "reliability_protocol": RELIABILITY_PROTOCOL, "cohort_id": dataset.cohort_id, "target": dataset.target,
-        "partition": asdict(partition), "config": asdict(config), "cases": [asdict(case) for case in cases]}
+        "partition": asdict(partition), "config": asdict(config), "cases": [asdict(case) for case in cases],
+        "input_policy": getattr(dataset, "input_policy", {})}
     study_id = sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
     results, failures, comparison, prepared = {}, [], [], {}
     # Bound BLAS and tree threads for predictable local dashboard responsiveness.
@@ -260,6 +263,7 @@ def train_study(dataset: ModelingDataset, partition: BatchPartition, cases=DEFAU
                 if case.feature_set not in prepared:
                     prepared[case.feature_set] = _prepare_folds(X, dataset.axis, case.feature_set, folds)
                 result = train_case(X, y, dataset.axis, case, config, folds, prepared[case.feature_set])
+                result.estimator.input_policy_ = getattr(dataset, "input_policy", {})
                 results[case.case_id] = result
                 comparison.append({"case_id": case.case_id, "feature_set": case.feature_set, "model": case.model,
                     "RMSECV": result.cv_metrics["RMSE"], "MAE_CV": result.cv_metrics["MAE"], "R2_CV": result.cv_metrics["R2"], "Bias_CV": result.cv_metrics["Bias"],
@@ -271,7 +275,8 @@ def train_study(dataset: ModelingDataset, partition: BatchPartition, cases=DEFAU
     table = pd.DataFrame(comparison).sort_values(["RMSECV", "case_id"]).reset_index(drop=True)
     return TrainingStudy(study_id, dataset.cohort_id, dataset.target, partition, config, cases, results,
         pd.DataFrame(failures, columns=["case_id", "error"]), table, metadata, y, fold_manifest(folds, X.index),
-        table.iloc[0]["case_id"], tuple(dataset.X.columns), dataset.axis.copy())
+        table.iloc[0]["case_id"], tuple(dataset.X.columns), dataset.axis.copy(), getattr(dataset, "data_provenance", {}),
+        getattr(dataset, "input_policy", {}))
 
 
 def evaluate_holdout(study: TrainingStudy, dataset: ModelingDataset):

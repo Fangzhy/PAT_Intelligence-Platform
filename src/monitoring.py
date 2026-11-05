@@ -10,6 +10,7 @@ from src.data_integration import SENSOR_RANGES
 from src.model_registry import ModelBundle
 from src.modeling_data import SENSOR_COLUMNS, TARGETS
 from src.prediction_reliability import assess_prediction_reliability
+from src.input_policy import read_input_policy
 
 
 DEFAULT_SENSOR_LIMITS = {
@@ -26,10 +27,16 @@ class MonitoringSettings:
     max_sensor_age_minutes: float = 30.0
     sensor_limits: dict = field(default_factory=lambda: dict(DEFAULT_SENSOR_LIMITS))
     prediction_limits: dict = field(default_factory=lambda: dict(DEFAULT_PREDICTION_LIMITS))
+    input_sensor_ranges: dict | None = None
 
     def __post_init__(self):
         self.sensor_limits = dict(self.sensor_limits)
         self.prediction_limits = dict(self.prediction_limits)
+        if self.input_sensor_ranges is not None:
+            ranges = self.input_sensor_ranges
+            if set(ranges) != set(SENSOR_RANGES) or any(len(bounds) != 2 or not np.isfinite(bounds).all() or bounds[0] >= bounds[1] for bounds in ranges.values()):
+                raise ValueError("Supply valid saved plausibility ranges for all sensors.")
+            self.input_sensor_ranges = {key: tuple(bounds) for key, bounds in ranges.items()}
         if not np.isfinite(self.domain_z_limit) or self.domain_z_limit <= 0:
             raise ValueError("The model-domain threshold must be finite and positive.")
         if not np.isfinite(self.max_sensor_age_minutes) or self.max_sensor_age_minutes < 0:
@@ -72,7 +79,7 @@ def _utc(value):
         return pd.NaT
 
 
-def input_quality_errors(row, required_columns, measurement_time, sensor_time, max_sensor_age_minutes):
+def input_quality_errors(row, required_columns, measurement_time, sensor_time, max_sensor_age_minutes, sensor_ranges=None):
     """Validate one observed row; timestamps are compared on the replay clock."""
     issues = []
     missing = set(required_columns) - set(row.columns)
@@ -84,7 +91,7 @@ def input_quality_errors(row, required_columns, measurement_time, sensor_time, m
                 issues.append("Missing, nonnumeric, or non-finite model input")
         except (ValueError, TypeError):
             issues.append("Nonnumeric model input")
-    for column, bounds in SENSOR_RANGES.items():
+    for column, bounds in (SENSOR_RANGES if sensor_ranges is None else sensor_ranges).items():
         if column in row:
             status = alarm_state(row.iloc[0][column], bounds)
             if status != "Within limits":
@@ -155,7 +162,14 @@ def predict_observation(bundle: ModelBundle | None, target, row, axis,
     if expected_axis.shape != supplied_axis.shape or not np.allclose(expected_axis, supplied_axis, rtol=1e-10, atol=1e-10):
         return result("axis_mismatch", ["Replay spectral axis differs from the fitted model; no resampling is performed"])
     required = bundle.metadata["input_columns"]
-    quality = input_quality_errors(row, required, measurement_time, sensor_time, settings.max_sensor_age_minutes)
+    tolerance, ranges = settings.max_sensor_age_minutes, settings.input_sensor_ranges
+    if bundle.metadata.get("input_policy"):
+        try:
+            policy, ranges = read_input_policy(bundle.metadata["input_policy"])
+            tolerance = policy.sensor_tolerance_minutes
+        except (ValueError, KeyError, TypeError) as error:
+            return result("invalid_input_policy", [str(error)])
+    quality = input_quality_errors(row, required, measurement_time, sensor_time, tolerance, ranges)
     if quality:
         return result("invalid_input", quality)
     ordered = row[list(required)].copy()

@@ -16,6 +16,7 @@ from src.data_generation import SimulationConfig
 from src.data_integration import integrate_sources, sources_from_dataset
 from src.feature_engineering import FEATURE_SETS
 from src.modeling import DEFAULT_CASES, MODELS, ModelCase, TrainingConfig, pls_diagnostics, train_study
+from src.modeling_compat import supports_range_settings
 from src.prediction_reliability_ui import render_study_reliability
 from src.modeling_data import TARGETS, fixed_batch_partition, modeling_dataset
 from src.modeling_storage import (
@@ -90,6 +91,11 @@ def main():
         st.warning(f"Excluded {len(dataset.excluded)} assay rows from the common cohort. All experiments use the same remaining rows, including sensor-only and spectral-only cases.")
         with st.expander("Modeling input exclusions"):
             st.dataframe(dataset.excluded, hide_index=True, width="stretch")
+    data_provenance = getattr(dataset, "data_provenance", {"status": "not_recorded", "sources": []})
+    with st.expander("Development data provenance"):
+        st.json(data_provenance)
+    if any(item.get("data_role") == "monitoring_demo" for item in data_provenance.get("sources", [])):
+        st.warning("The selected prepared sources contain monitoring demo observations. Training on these observations makes them development data for this study; do not claim subsequent reuse as unseen monitoring evidence.")
     state_root = Path(st.session_state.get("modeling_state_root", DEFAULT_STATE_ROOT))
     try:
         partition = stored_partition(state_root, dataset.cohort_id) or fixed_batch_partition(dataset.metadata.batch_id)
@@ -116,29 +122,36 @@ def main():
     catalog = {experiment_label(ModelCase(feature, model)): ModelCase(feature, model) for feature in FEATURE_SETS for model in MODELS}
     defaults = [experiment_label(case) for case in (study.cases if matching_study else DEFAULT_CASES)]
     existing = study.config if matching_study else TrainingConfig()
+    declared_range = getattr(existing, "declared_range", None)
+    decision_range = getattr(existing, "decision_range", None)
+    current_training_code = supports_range_settings(TrainingConfig)
+    if not current_training_code:
+        st.warning("This Streamlit server still has older modeling code loaded. Saved results remain readable. Stop the server with Ctrl+C, then restart with .\\.venv\\Scripts\\python.exe -m streamlit run app.py before training or evaluating. Do not delete saved studies or holdout records.")
     with st.form("model_training_plan"):
         experiments = st.multiselect("Feature/model experiments", list(catalog), default=defaults, disabled=sealed, key="model_experiments")
         splits = list(range(2, len(partition.training_batches) + 1))
         folds = st.selectbox("Training-only GroupKFold splits", splits, index=splits.index(min(existing.n_splits, len(partition.training_batches))), disabled=sealed, key="model_folds")
         max_components = st.slider("Maximum PLS latent variables to compare", 1, 12, min(12, existing.max_pls_components), disabled=sealed, key="model_components")
         trees = st.selectbox("Trees per forest / boosting fit", [40, 80, 160], index=[40, 80, 160].index(existing.tree_count) if existing.tree_count in (40, 80, 160) else 1, disabled=sealed, key="model_trees")
-        custom_range = st.checkbox("Declare concentration and decision ranges", value=existing.declared_range is not None or existing.decision_range is not None, disabled=sealed, key="model_custom_range")
+        custom_range = st.checkbox("Declare concentration and decision ranges", value=declared_range is not None or decision_range is not None, disabled=sealed or not current_training_code, key="model_custom_range")
         training_y = dataset.y.loc[training]
         supported = (float(training_y.min()), float(training_y.max()))
-        declared_defaults = existing.declared_range or supported
-        decision_defaults = existing.decision_range or declared_defaults
+        declared_defaults = declared_range or supported
+        decision_defaults = decision_range or declared_defaults
         st.caption(f"Training-reference extent: {supported[0]:.4g}–{supported[1]:.4g} g/L. Default policy uses this provisional extent. Custom ranges are saved before test disclosure and cannot extend it.")
         bounds = st.columns(4)
         range_low = bounds[0].number_input("Declared lower (g/L)", min_value=0.0, value=declared_defaults[0], disabled=sealed, key=f"model_range_low_{target}")
         range_high = bounds[1].number_input("Declared upper (g/L)", min_value=0.0, value=declared_defaults[1], disabled=sealed, key=f"model_range_high_{target}")
         decision_low = bounds[2].number_input("Decision lower (g/L)", min_value=0.0, value=decision_defaults[0], disabled=sealed, key=f"model_decision_low_{target}")
         decision_high = bounds[3].number_input("Decision upper (g/L)", min_value=0.0, value=decision_defaults[1], disabled=sealed, key=f"model_decision_high_{target}")
-        train_clicked = st.form_submit_button("Train and compare (CV only)", type="primary", disabled=sealed, key="train_models")
+        train_clicked = st.form_submit_button("Train and compare (CV only)", type="primary", disabled=sealed or not current_training_code, key="train_models")
     st.caption("PLS compares valid component counts from 1 to the chosen cap. RF and XGBoost compare compact fixed grids; Linear Regression is an untuned baseline. Features and scalers are fitted separately inside each training fold. No early stopping uses the holdout.")
     if sealed:
         st.info("This cohort's holdout is sealed: the saved comparison is frozen. Revisits show stored results. New experiments require a genuinely new cohort rather than retuning against revealed test scores.")
     if train_clicked:
-        if holdout_is_sealed(state_root, dataset.cohort_id):
+        if not current_training_code:
+            st.error("Restart the Streamlit server to load the updated training code before creating a study.")
+        elif holdout_is_sealed(state_root, dataset.cohort_id):
             st.error("Holdout already revealed; this comparison cannot be retrained.")
         else:
             progress = st.progress(0.0, text="Preparing training-only comparisons…")
@@ -248,7 +261,7 @@ def main():
             st.write(f"Frozen CV winner: **{experiment_label(active.results[active.winner_id].case)}**. Final batches: **{', '.join(active.partition.holdout_batches)}**. The final step evaluates all successful declared experiments on the same test rows and retains the CV-selected winner.")
             if evaluation is None:
                 st.caption("This step reveals held-out scores and permanently seals further tuning for this local cohort. Repeated visits reuse stored results. No test metric has been calculated by the training step.")
-                if st.button("Freeze comparison and evaluate held-out batches once", key="evaluate_holdout", disabled=sealed, type="primary"):
+                if st.button("Freeze comparison and evaluate held-out batches once", key="evaluate_holdout", disabled=sealed or not current_training_code, type="primary"):
                     try:
                         with st.spinner("Scoring the frozen experiment set…"):
                             evaluate_once(active, dataset, state_root)

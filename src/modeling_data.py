@@ -1,6 +1,6 @@
 """Assay-labeled, common-row modeling cohorts and immutable batch partitions."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from hashlib import sha256
 import json
 
@@ -9,6 +9,8 @@ import pandas as pd
 
 from src.data_integration import IntegrationResult, SENSOR_RANGES
 from src.preprocessing import validate_axis
+from src.demo_data import source_provenance
+from src.input_policy import make_input_policy
 
 
 TARGETS = {"Glucose": "glucose_reference_g_l", "Lactate": "lactate_reference_g_l"}
@@ -24,6 +26,8 @@ class ModelingDataset:
     target: str
     cohort_id: str
     excluded: pd.DataFrame
+    data_provenance: dict = field(default_factory=dict)
+    input_policy: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -111,4 +115,5 @@ def modeling_dataset(result: IntegrationResult, target="Glucose") -> ModelingDat
         fingerprint.update(json.dumps(list(frame.columns)).encode())
     fingerprint.update(axis.tobytes())
     y = pd.Series(selected[TARGETS[target]].to_numpy(dtype=float), index=row_ids, name=TARGETS[target])
-    return ModelingDataset(X, y, metadata, axis, target, fingerprint.hexdigest(), excluded.reset_index(drop=True))
+    return ModelingDataset(X, y, metadata, axis, target, fingerprint.hexdigest(), excluded.reset_index(drop=True),
+        source_provenance(result.processed.batches), make_input_policy(result.config, result.sensor_ranges))

@@ -6,7 +6,7 @@ original estimate and an explicit revision audit. No fitting or imputation.
 """
 
 from collections import defaultdict
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from io import BytesIO
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -19,6 +19,9 @@ from src.modeling_data import SENSOR_COLUMNS, TARGETS
 from src.modeling_storage import _json_text
 from src.monitoring import PredictionResult, alarm_state, input_quality_errors, predict_observation
 from src.prediction_reliability import reliability_record
+from src.demo_data import source_provenance
+from src.input_policy import shared_input_policy, read_input_policy
+from src.monitoring_pipeline import integrate_received_sources, transformed_observation
 
 
 @dataclass(frozen=True)
@@ -129,6 +132,11 @@ class AcquiredStreamSession:
 
     def process(self, models, monitoring_settings, stream_settings, *, now=None):
         now = _now(now)
+        if any(bundle is not None and bundle.metadata.get("input_policy") for bundle in models.values()):
+            policy, _ = shared_input_policy(models)
+            config, ranges = read_input_policy(policy)
+            monitoring_settings = replace(monitoring_settings,
+                max_sensor_age_minutes=config.sensor_tolerance_minutes, input_sensor_ranges=ranges)
         tables, ambiguous = _tables_and_ambiguity(self.acquisition)
         receipts = {}
         for delivery in self.acquisition.audit:
@@ -198,7 +206,7 @@ class AcquiredStreamSession:
             columns = [key for key in row if key.startswith("raman_")]
             inputs = pd.DataFrame([{f"raman_{float(key.removeprefix('raman_')):.12g}": row[key] for key in columns} | {key: sensor[1][key] if sensor else np.nan for key in SENSOR_COLUMNS}])
             sensor_time = pd.Timestamp(sensor[1]["measurement_timestamp"]) if sensor else pd.NaT
-            quality = input_quality_errors(inputs, list(inputs.columns), measured, sensor_time, monitoring_settings.max_sensor_age_minutes)
+            quality = input_quality_errors(inputs, list(inputs.columns), measured, sensor_time, monitoring_settings.max_sensor_age_minutes, monitoring_settings.input_sensor_ranges)
             reasons.extend(quality)
             freshness = freshness_errors(measured, now, stream_settings, "Spectrum")
             if sensor:
@@ -235,7 +243,7 @@ class AcquiredStreamSession:
         rows = list(self.records.values()) + list(self.pending_views.values())
         return pd.DataFrame(rows).sort_values(["measurement_timestamp", "spectrum_event_id"]).reset_index(drop=True) if rows else pd.DataFrame()
 
-    def sensor_history(self, stream_settings, *, now=None):
+    def sensor_history(self, stream_settings, *, now=None, monitoring_settings=None):
         now = _now(now)
         tables, ambiguous = _tables_and_ambiguity(self.acquisition)
         rows = []
@@ -245,7 +253,8 @@ class AcquiredStreamSession:
             if event_id in ambiguous:
                 flags.append("Ambiguous sensor identity/time")
             frame = pd.DataFrame([data])
-            flags.extend(input_quality_errors(frame, SENSOR_COLUMNS, data["measurement_timestamp"], data["measurement_timestamp"], 0))
+            flags.extend(input_quality_errors(frame, SENSOR_COLUMNS, data["measurement_timestamp"], data["measurement_timestamp"], 0,
+                monitoring_settings.input_sensor_ranges if monitoring_settings is not None else None))
             record.update(sensor_event_id=event_id, sensor_quality_flags="; ".join(flags))
             record["measurement_timestamp"] = pd.Timestamp(record["measurement_timestamp"])
             rows.append(record)
@@ -276,11 +285,39 @@ def acquired_stream_report_zip(session, models, monitoring_settings, stream_sett
     now = _now(now)
     output = BytesIO()
     with ZipFile(output, "w", ZIP_DEFLATED) as archive:
-        for name, frame in (("predictions", session.history()), ("sensors", session.sensor_history(stream_settings, now=now)),
+        sources = session.acquisition.snapshot()
+        for name, frame in sources.as_dict().items():
+            archive.writestr(f"received/{name}.csv", frame.to_csv(index=False))
+        try:
+            policy = context.get("input_policy") or shared_input_policy(models)[0]
+            archive.writestr("processing/input_policy.json", _json_text(policy))
+            if not sources.raman.empty:
+                integrated = integrate_received_sources(sources, policy)
+                for name in ("integrated", "issues", "missing_summary", "outlier_summary"):
+                    archive.writestr(f"processing/{name}.csv", getattr(integrated, name).to_csv(index=False))
+                for name, frame in integrated.processed.as_dict().items():
+                    archive.writestr(f"processing/{name}.csv", frame.to_csv(index=False))
+            history = session.history()
+            if not history.empty:
+                aligned = history[history.alignment_status.eq("aligned") & history.invalidation_reason.eq("")]
+                if not aligned.empty:
+                    event = aligned.iloc[-1].spectrum_event_id
+                    for target, bundle in models.items():
+                        if bundle is not None:
+                            try:
+                                frame = transformed_observation(session, bundle, event)
+                                frame["spectrum_event_id"] = event
+                                archive.writestr(f"processing/latest_{target.lower()}_features.csv", frame.to_csv(index=False))
+                            except (ValueError, TypeError, KeyError) as error:
+                                archive.writestr(f"processing/{target.lower()}_features_unavailable.txt", str(error))
+        except (ValueError, TypeError, KeyError) as error:
+            archive.writestr("processing/unavailable.txt", str(error))
+        for name, frame in (("predictions", session.history()), ("sensors", session.sensor_history(stream_settings, now=now, monitoring_settings=monitoring_settings)),
             ("available_assays", session.available_assays(now=now)), ("delivery_audit", session.acquisition.ledger()),
             ("prediction_invalidations", pd.DataFrame(session.invalidations))):
             archive.writestr(f"{name}.csv", frame.to_csv(index=False))
         archive.writestr("manifest.json", _json_text({"context": context, "exported_at_utc": now.isoformat(),
+            "data_provenance": source_provenance(session.acquisition.snapshot().batches),
             "source_id": session.acquisition.source_id, "cursor": session.acquisition.cursor,
             "complete": session.acquisition.complete, "last_error": session.acquisition.last_error,
             "first_poll_utc": str(session.first_poll_utc), "last_new_data_utc": str(session.last_new_data_utc),
