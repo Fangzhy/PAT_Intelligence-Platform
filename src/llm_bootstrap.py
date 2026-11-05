@@ -12,7 +12,7 @@ from threading import RLock
 
 _LOCK = RLock()
 _EXPORTS = {
-    "src.llm_results": ("PROMPT_VERSION", "ResultSnapshot", "spectral_snapshot", "process_snapshot", "multivariate_snapshot"),
+    "src.llm_results": ("PROMPT_VERSION", "ResultSnapshot", "spectral_snapshot", "process_snapshot", "multivariate_snapshot", "acquired_reliability_snapshot"),
     "src.llm_client": ("PROMPT_VERSION", "ExplanationService", "RouterRuntime", "load_config"),
     "src.llm_ui": ("PROMPT_VERSION", "render_explanation", "render_captured_explanation"),
 }

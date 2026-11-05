@@ -293,8 +293,9 @@ out-of-domain, or mismatched-axis inputs yield gaps. Later conflicts withdraw
 affected published estimates while preserving original estimates and an audit.
 Assays are delayed display/reliability references and are never model inputs.
 
-Acquisition and Process Monitoring share one acquisition cursor. Other analysis
-pages pause collection. Current
+Acquisition, Process Monitoring, acquired Multivariate Monitoring and acquired
+Model Reliability share one acquisition cursor. Other analysis views pause
+collection. Current
 prediction cards are withheld on read failure, source silence, or stale inputs;
 historical results remain visible in their audit. Replay/Historical review remain
 available. **Open Process Monitoring** shows the collection already received by
@@ -363,6 +364,16 @@ mathematics, a worked example, code walkthrough, test outcomes, limitations,
 and three interview questions with sample answers.
 
 ## Phase 7: model reliability and lifecycle validation
+
+Model Reliability now also offers **Acquired data reliability**, using the same
+collection, cursor and recorded predictions as Data Acquisition and Process
+Monitoring. It adds received-assay residuals/bias, operational errors with
+coverage, quality/freshness flags, and training-reference input/prediction shift.
+Prepare the matching training baseline explicitly; missing baselines leave drift
+unassessed. Frozen test evidence and operational results stay separate. See the
+[acquired reliability walkthrough](deployment/ACQUIRED_MODEL_RELIABILITY.md).
+
+For **Historical operational review**, use the existing workflow below.
 
 Open **Model Reliability** in the sidebar. Select glucose or lactate and either
 prepare a separate frozen demo or read a matching saved Phase 4 study. The page

@@ -71,9 +71,27 @@ Prepare the separate demo, review through the latest assay, then compare each co
 
 def main():
     st.set_page_config(page_title="PAT | Model Reliability", page_icon="🔎", layout="wide")
-    pause_monitoring_on_navigation()
+    views = ["Historical operational review", "Acquired data reliability"]
+    requested = st.session_state.pop("reliability_mode_requested", None)
+    if requested in views:
+        st.session_state["reliability_mode_preference"] = requested
+        st.session_state.pop("reliability_mode", None)
+    default = views[1] if st.session_state.get("stream_monitor_workspace") is not None else views[0]
+    mode = st.radio("Reliability data source", views, index=views.index(st.session_state.get("reliability_mode_preference", default)), key="reliability_mode")
+    st.session_state["reliability_mode_preference"] = mode
+    if mode == views[0]:
+        pause_monitoring_on_navigation()
+    else:
+        replay = st.session_state.get("monitoring_session")
+        if replay is not None:
+            replay.clock.pause()
     st.caption("PAT INTELLIGENCE PLATFORM")
     st.title("Review model evidence. Follow reliability over time.")
+    if mode == views[1]:
+        from src.acquired_reliability_ui import render_acquired_reliability
+        st.info("Shared acquired-data review · Frozen model evidence remains separate · Advisory only · No manufacturing validation")
+        render_acquired_reliability()
+        return
     st.info("Synthetic historical review · Frozen independent-batch evidence · Advisory only · No manufacturing validation")
     overview = st.session_state.get("simulation_config", SimulationConfig())
     preferences = st.session_state.get("reliability_preferences", {})

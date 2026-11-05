@@ -41,6 +41,7 @@ def initialize_runtime(state):
         "modeling_state_root": "modeling", "monitoring_models_root": "monitoring/models",
         "reliability_state_root": "reliability", "deployment_state_root": "releases",
         "multivariate_state_root": "multivariate",
+        "acquired_reliability_state_root": "acquired_reliability",
     }.items():
         state[key] = str(root / suffix)
     state.setdefault("simulation_config", SimulationConfig(n_batches=6, duration_h=72, n_wavenumbers=71))

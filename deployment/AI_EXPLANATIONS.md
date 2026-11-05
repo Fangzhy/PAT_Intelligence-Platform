@@ -46,6 +46,15 @@ version, snapshot fingerprint, and generation time.
 
 ## Spectral and monitoring views
 
+On **Model Reliability → Acquired data reliability**, select an active monitoring
+target and received batch/window. Click **Capture visible view for explanation**,
+then explain that fixed historical snapshot. Aggregate facts cover recorded
+model evidence, assessed operational pairs/errors, current eligibility counts,
+baseline availability and distribution flags. No raw measurements, identities
+or credentials are sent. Missing assays/baselines remain unassessed, and no
+independent-test claim is added to CV-only models. Timer reruns never call an LLM;
+the existing primary/backup/template fallback and external-data consent apply.
+
 On **Spectral Analytics**, the panel explains the current region, selected
 spectrum statistics, raw-minus-SG residual SD, Fourier band fraction, wavelet
 threshold, and available exploratory PCA summary. It sends no raw curve,

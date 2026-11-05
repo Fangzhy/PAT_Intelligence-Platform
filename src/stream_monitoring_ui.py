@@ -227,7 +227,7 @@ def render_stream(context, models, monitoring, rules, limit, signature, acquisit
         st.dataframe(session.acquisition.ledger(), hide_index=True, width="stretch")
         st.dataframe(pd.DataFrame(session.invalidations), hide_index=True, width="stretch")
         st.download_button("Download acquired stream monitoring report (ZIP)", acquired_stream_report_zip(session, models, monitoring, rules, context, now=now), file_name="pat_acquired_stream_monitoring.zip", mime="application/zip", key="stream_report")
-    st.caption("Data Acquisition and Process Monitoring share this cursor and history. Other analysis pages pause polling. Historical predictions remain in the audit; current cards are withheld after a failed read, data silence, or freshness failure. Source/model/rule changes begin a fresh paused context.")
+    st.caption("Data Acquisition, Process Monitoring, acquired Multivariate Monitoring and acquired Model Reliability share this collection and cursor. Other analysis views pause polling. Historical predictions remain in the audit; current cards are withheld after a failed read, data silence, or freshness failure. Source/model/rule changes begin a fresh paused context.")
     try:
         snapshot = process_snapshot(prediction_view, sensor_view, assay_view, monitoring, cutoff=now,
             context={"view": signature, "batch_view": selected, "invalidations": len(session.invalidations)},

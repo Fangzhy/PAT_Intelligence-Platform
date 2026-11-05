@@ -13,6 +13,9 @@ New synthetic monitoring population / compatible JSON API
 
 Received sensors -> historical fitted PCA scaler/components/limits
   -> Multivariate Monitoring: T², SPE and sensor contributions
+
+Recorded predictions + received delayed laboratory assays + training baseline
+  -> Model Reliability: residuals/bias, operational errors and distribution shift
 ```
 
 ## Run the workflow
@@ -39,12 +42,18 @@ Received sensors -> historical fitted PCA scaler/components/limits
 6. Open **Process Monitoring**. The app selects acquired-stream mode and keeps
    the same collector, received records, cursor and existing inference attempts.
    Active polling can continue between these two views and acquired Multivariate
-   Monitoring after its historical reference has been fitted/loaded. Other
+   Monitoring after its historical reference has been fitted/loaded, and acquired
+   Model Reliability when a monitoring model is selected. Other
    analysis pages pause collection. There is no detached development handoff.
 
 The [acquired PCA guide](ACQUIRED_PCA_MONITORING.md) describes the separate PCA
 reference calibration and shared-sensor projection. Each model uses its own
 fitted preprocessing; PCA never calls the glucose/lactate prediction pipeline.
+
+The [acquired reliability guide](ACQUIRED_MODEL_RELIABILITY.md) explains exact
+model/baseline matching and received-assay timing. It reuses recorded inference
+without fitting or repeating predictions and keeps operational results separate
+from frozen independent validation.
 
 ## What Process Monitoring shows
 

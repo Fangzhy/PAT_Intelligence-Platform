@@ -35,7 +35,10 @@ calibration seeds and CV-only evidence labels.
    rejected observations remain gaps with recorded reasons.
 6. Model Reliability keeps frozen historical test results separate from the
    operational review of MON- observations. That review does not create a new
-   independent-test record.
+   independent-test record. **Acquired data reliability** uses the same shared
+   incoming collection, recorded predictions and received assay results. The
+   training-only drift baseline must match the active model artifact; see the
+   [walkthrough](ACQUIRED_MODEL_RELIABILITY.md).
 
 Multivariate Monitoring fits its PCA reference using historical Overview sensor
 batches. Its **Acquired sensor monitoring** mode then projects received sensors
