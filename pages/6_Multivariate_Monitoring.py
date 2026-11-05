@@ -71,9 +71,9 @@ The upper limit for each chart is a separate nominal batch's empirical quantile 
 
 
 def main():
-    st.set_page_config(page_title="Vaccine PAT | Multivariate Monitoring", page_icon="📊", layout="wide")
+    st.set_page_config(page_title="PAT | Multivariate Monitoring", page_icon="📊", layout="wide")
     pause_monitoring_on_navigation()
-    st.caption("VACCINE PAT INTELLIGENCE PLATFORM")
+    st.caption("PAT INTELLIGENCE PLATFORM")
     st.title("Monitor the joint process pattern.")
     st.write("Reference-fitted PCA, Hotelling’s T², and SPE/Q for temperature, pH, dissolved oxygen, feed flow, and agitation.")
     st.info("Synthetic historical comparison · Advisory only · Empirical reference limits · No manufacturing validation")

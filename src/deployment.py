@@ -100,7 +100,7 @@ def predict_frame(bundle, inputs, settings=None, *, max_rows=1000):
 
 def model_card(bundle):
     metadata = bundle.metadata
-    return f"""# Vaccine PAT model card
+    return f"""# PAT Intelligence Platform model card
 
 - Version: {bundle.version}
 - Target: {bundle.target}, g/L

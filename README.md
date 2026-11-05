@@ -1,4 +1,4 @@
-# Vaccine-PAT-Intelligence-Platform
+# PAT_Intelligence-Platform
 
 [Launch live demo](https://pat-intelligence.streamlit.app/)
 

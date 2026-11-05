@@ -60,9 +60,9 @@ def residual_plot(rows, title):
 
 
 def main():
-    st.set_page_config(page_title="Vaccine PAT | Predictive Modeling", page_icon="📈", layout="wide")
+    st.set_page_config(page_title="PAT | Predictive Modeling", page_icon="📈", layout="wide")
     pause_monitoring_on_navigation()
-    st.caption("VACCINE PAT INTELLIGENCE PLATFORM")
+    st.caption("PAT INTELLIGENCE PLATFORM")
     st.title("Compare soft sensors. Test independent batches.")
     st.write("Train from offline glucose or lactate assays, compare fixed spectral feature recipes, and preserve whole-batch separation.")
     st.info("Synthetic/public-data learning workflow · Assay references are labels; simulated truth is not a model input · No potency, purity, or manufacturing-validation claim.")

@@ -68,9 +68,9 @@ Prepare the separate demo, review through the latest assay, then compare each co
 
 
 def main():
-    st.set_page_config(page_title="Vaccine PAT | Model Reliability", page_icon="🔎", layout="wide")
+    st.set_page_config(page_title="PAT | Model Reliability", page_icon="🔎", layout="wide")
     pause_monitoring_on_navigation()
-    st.caption("VACCINE PAT INTELLIGENCE PLATFORM")
+    st.caption("PAT INTELLIGENCE PLATFORM")
     st.title("Review model evidence. Follow reliability over time.")
     st.info("Synthetic historical review · Frozen independent-batch evidence · Advisory only · No manufacturing validation")
     overview = st.session_state.get("simulation_config", SimulationConfig())
