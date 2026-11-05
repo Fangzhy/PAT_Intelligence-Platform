@@ -134,6 +134,6 @@ def test_source_or_rule_change_clears_replay_capture(tmp_path, fake_ai):
     app.button(key="replay_step").click().run()
     app.button(key="ai_process_capture_button").click().run()
     app.button(key="ai_process_explain").click().run()
-    app.selectbox(key="monitor_batch").select("B002").run()
+    app.selectbox(key="monitor_batch").select("MON-B002").run()
     assert not app.exception and "ai_process_capture" not in app.session_state
     assert len(fake_ai) == 1

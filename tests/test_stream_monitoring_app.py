@@ -71,7 +71,8 @@ def test_historical_stream_inference_has_frozen_history_and_rule_changes_reset(t
     assert not app.exception
     assert [metric.value for metric in app.metric[:4]] == ["Complete", "53", "25", "0"]
     before = history(app).copy()
-    assert set(before.glucose_status) == {"ok", "outside_reliability_limits"}
+    assert before.glucose_status.eq("ok").all()  # Independent monitoring seed 3000059, no gates exceeded in this fixture.
+    assert before.batch_id.eq("MON-B001").all()
     accepted = before.glucose_status.eq("ok")
     assert np.isfinite(before.loc[accepted, "glucose_prediction_g_l"]).all()
     assert before.loc[~accepted, "glucose_prediction_g_l"].isna().all()
@@ -160,29 +161,33 @@ def test_navigation_pauses_stream_and_restores_its_consumer_history(tmp_path):
     cursor = app.session_state["stream_monitoring_session"].acquisition.cursor
     assert app.session_state["stream_monitoring_session"].acquisition.running
     app.switch_page("pages/9_Test_Acquisition.py").run()
-    assert not app.exception and not app.session_state["stream_monitoring_session"].acquisition.running
+    assert not app.exception and app.session_state["stream_monitoring_session"].acquisition.running
+    assert app.session_state["acquisition_session"] is app.session_state["stream_monitoring_session"].acquisition
+    cursor = app.session_state["acquisition_session"].cursor
     app.switch_page("pages/2_Data_Integration.py").run()
     assert not app.exception
+    assert not app.session_state["stream_monitoring_session"].acquisition.running
     app.switch_page(PAGE).run()
     assert not app.exception and app.radio(key="monitor_mode").value == "Acquired stream"
     assert app.metric[1].value == str(cursor)
 
 
-def test_data_acquisition_source_handoff_configures_monitoring_without_copying_cursor(tmp_path):
+def test_data_acquisition_and_monitoring_share_received_records_and_cursor(tmp_path):
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=90)
     app.session_state["modeling_state_root"] = str(tmp_path / "phase4")
     app.session_state["monitoring_models_root"] = str(tmp_path / "models")
     app.run()
     app.switch_page("pages/9_Test_Acquisition.py").run()
     app.button(key="acq_poll").click().run()
-    assert app.session_state["acquisition_session"].cursor == 10
+    cursor = app.session_state["acquisition_session"].cursor
+    assert cursor > 0
     app.button(key="acq_open_monitoring").click().run()
     assert not app.exception and app.radio(key="monitor_mode").value == "Acquired stream"
-    assert app.selectbox(key="stream_source").value == "Historical in-app test source"
-    assert not app.checkbox(key="stream_enforce").value
-    assert app.metric[1].value == "0"
+    assert app.selectbox(key="stream_source").value == "Fresh in-app test stream"
+    assert app.checkbox(key="stream_enforce").value
+    assert app.metric[1].value == str(cursor)
     # Follow the programmatic redirect in AppTest's persistent page selection.
     app.switch_page(PAGE)
     app.button(key="stream_poll").click().run()
     assert not app.exception and int(app.metric[1].value) > 0
-    assert app.session_state["acquisition_session"].cursor == 10
+    assert app.session_state["acquisition_session"].cursor == app.session_state["stream_monitoring_session"].acquisition.cursor

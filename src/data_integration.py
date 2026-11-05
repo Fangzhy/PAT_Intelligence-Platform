@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 from src.data_generation import SyntheticDataset
+from src.demo_data import PROVENANCE_COLUMNS, source_provenance
 
 
 SENSOR_RANGES = {
@@ -221,7 +222,7 @@ def integrate_sources(
         active["_source_row"] = np.arange(1, len(active) + 1)
         if batch_ids is not None:
             active = active[active["batch_id"].astype("string").str.strip().isin(batch_ids) | _blank(active["batch_id"])]
-        optional = [column for column in ("scenario", "description") if name == "batches" and column in active]
+        optional = [column for column in ("scenario", "description", *PROVENANCE_COLUMNS) if name == "batches" and column in active]
         columns = REQUIRED_COLUMNS[name] + (spectral_columns if name == "raman" else []) + optional
         frame = active[columns + ["_source_row"]].reset_index(drop=True).copy()
         frame["_eligible"] = True
@@ -397,6 +398,7 @@ def report_zip(result: IntegrationResult) -> bytes:
             archive.writestr(f"reports/{name}.csv", getattr(result, name).to_csv(index=False))
         archive.writestr("manifest.json", json.dumps({
             "phase": 2, "config": asdict(result.config), "sensor_ranges": result.sensor_ranges,
+            "data_provenance": source_provenance(result.processed.batches),
             "selected_batches": result.selected_batches, "timezone": "UTC",
             "raw_scope": "All original input rows; processed tables and reports use the selected batches, plus rows with missing batch IDs.",
             "duplicate_policy": "Exclude all ambiguous IDs/timestamps from matching; retain in raw/processed tables with flags.",

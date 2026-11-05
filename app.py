@@ -14,7 +14,6 @@ def main():
     pages = {
         "": [st.Page("pages/1_Overview.py", title="Overview", icon="🧪", default=True)],
         "Data": [
-            st.Page("pages/9_Test_Acquisition.py", title="Data Acquisition", icon="📥", url_path="Data_Acquisition"),
             st.Page("pages/2_Data_Integration.py", title="Data Integration & Quality", icon="🔗", url_path="Data_Integration"),
         ],
         "Analytics": [
@@ -22,6 +21,7 @@ def main():
             st.Page("pages/4_Predictive_Modeling.py", title="Predictive Modeling", icon="🧠"),
         ],
         "Monitoring": [
+            st.Page("pages/9_Test_Acquisition.py", title="Data Acquisition", icon="📥", url_path="Data_Acquisition"),
             st.Page("pages/5_Process_Monitoring.py", title="Process Monitoring", icon="⏱️"),
             st.Page("pages/6_Multivariate_Monitoring.py", title="Multivariate Monitoring", icon="📊"),
             st.Page("pages/7_Model_Reliability.py", title="Model Reliability", icon="🔎"),

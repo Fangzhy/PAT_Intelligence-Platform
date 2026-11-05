@@ -18,7 +18,7 @@ from src.modeling_storage import _atomic_joblib, _atomic_json, study_manifest
 
 
 DEFAULT_MONITORING_MODELS = Path(__file__).resolve().parents[1] / ".pat_state" / "monitoring" / "models"
-DEMO_PROTOCOL = "phase5-demo-v2-reliability"
+DEMO_PROTOCOL = "phase5-demo-v3-saved-input-policy"
 
 
 @dataclass(frozen=True)
@@ -104,6 +104,11 @@ def load_model(reference: ModelReference) -> ModelBundle:
         if axis.shape != features.axis_.shape or not np.allclose(axis, features.axis_, rtol=1e-10, atol=1e-10):
             raise ValueError("Model axis and saved feature transformer disagree.")
         expected = [f"raman_{value:.12g}" for value in axis]
+        if metadata.get("input_policy"):
+            from src.input_policy import read_input_policy
+            read_input_policy(metadata["input_policy"])
+            if getattr(pipeline, "input_policy_", None) != metadata["input_policy"]:
+                raise ValueError("Saved pipeline and integration/quality metadata disagree.")
         if not set(expected).issubset(metadata["input_columns"]):
             raise ValueError("Model input schema does not match its Raman axis.")
     except Exception as error:

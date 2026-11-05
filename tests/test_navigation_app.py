@@ -22,24 +22,25 @@ def test_sidebar_groups_follow_the_data_workflow_and_register_each_page(monkeypa
     assert not app.exception
     assert rendered_groups == [{
         "": ["Overview"],
-        "Data": ["Data Acquisition", "Data Integration & Quality"],
+        "Data": ["Data Integration & Quality"],
         "Analytics": ["Spectral Analytics", "Predictive Modeling"],
-        "Monitoring": ["Process Monitoring", "Multivariate Monitoring", "Model Reliability"],
+        "Monitoring": ["Data Acquisition", "Process Monitoring", "Multivariate Monitoring", "Model Reliability"],
         "Lifecycle": ["Deployment & Reporting"],
     }]
     registered = list(app._registered_pages.values())
-    assert [page["page_name"] for page in registered][:3] == ["Overview", "Data Acquisition", "Data Integration & Quality"]
+    assert [page["page_name"] for page in registered][:3] == ["Overview", "Data Integration & Quality", "Spectral Analytics"]
     assert len({page["script_path"] for page in registered}) == 9
     assert registered[0]["url_pathname"] == ""
-    assert registered[1]["url_pathname"] == "Data_Acquisition"
+    assert next(page for page in registered if page["page_name"] == "Data Acquisition")["url_pathname"] == "Data_Acquisition"
 
 
-def test_integration_shortcut_reaches_test_mode_and_preserves_snapshot_roundtrip():
+def test_monitoring_acquisition_keeps_development_source_separate():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=90).run()
     simulation = app.session_state["simulation_config"]
     app.switch_page("pages/2_Data_Integration.py").run()
     app.radio(key="integration_source").set_value("Upload CSV sources").run()
-    app.button(key="open_data_acquisition").click().run()
+    assert app.radio(key="integration_source").options == ["Synthetic dataset", "Upload CSV sources"]
+    app.switch_page("pages/9_Test_Acquisition.py").run()
     assert not app.exception
     assert app.title[0].value == "Data Acquisition"
     assert any("Test mode" in markdown.value for markdown in app.markdown)
@@ -49,12 +50,11 @@ def test_integration_shortcut_reaches_test_mode_and_preserves_snapshot_roundtrip
     app.switch_page("pages/9_Test_Acquisition.py")
     app.button(key="acq_poll").click().run()
     cursor = app.session_state["acquisition_session"].cursor
-    app.button(key="acq_publish").click().run()
+    assert not any(button.key == "acq_publish" for button in app.button)
     app.switch_page("pages/2_Data_Integration.py").run()
     assert not app.exception
-    assert app.radio(key="integration_source").value == "Acquired test snapshot"
-    assert app.metric[0].value == str(len(app.session_state["acquisition_snapshot"]["sources"].raman))
-    app.button(key="open_data_acquisition").click().run()
+    assert app.radio(key="integration_source").value == "Upload CSV sources"
+    app.switch_page("pages/9_Test_Acquisition.py").run()
     assert not app.exception and app.metric[1].value == str(cursor)
     assert not app.session_state["acquisition_session"].running
     assert app.session_state["simulation_config"] == simulation

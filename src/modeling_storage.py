@@ -24,6 +24,7 @@ import xgboost
 
 from src.modeling import PROTOCOL_VERSION, TrainingStudy, evaluate_holdout, pls_diagnostics
 from src.modeling_data import BatchPartition
+from src.modeling_compat import normalize_training_config
 from src.prediction_reliability import study_range_performance
 
 
@@ -92,6 +93,8 @@ def study_manifest(study):
     return {
         "protocol": PROTOCOL_VERSION, "study_id": study.study_id, "cohort_id": study.cohort_id,
         "target": study.target, "target_unit": "g/L", "partition": asdict(study.partition),
+        "data_provenance": getattr(study, "data_provenance", {}) or {"status": "not_recorded", "sources": []},
+        "input_policy": getattr(study, "input_policy", {}) or None,
         "training_config": asdict(study.config), "experiments": [asdict(case) for case in study.cases],
         "cv_selected_winner": study.winner_id, "input_columns": list(study.input_columns),
         "spectral_axis_cm1": study.axis.tolist(), "training_rows": len(study.training_reference),
@@ -141,6 +144,7 @@ def load_study(root, cohort_id):
     study = joblib.load(path)
     if not isinstance(study, TrainingStudy) or study.cohort_id != cohort_id or study.study_id != manifest["study_id"]:
         raise ValueError("Saved study identity does not match its manifest.")
+    study.config = normalize_training_config(study.config)
     return study
 
 

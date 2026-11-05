@@ -11,7 +11,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.app_data import load_dataset
+from src.app_data import load_dataset, load_monitoring_dataset
+from src.demo_data import demo_provenance
+from src.demo_data_ui import render_demo_provenance
 from src.data_generation import SimulationConfig
 from src.data_integration import integrate_sources, sources_from_dataset
 from src.modeling_data import TARGETS, modeling_dataset
@@ -133,11 +135,13 @@ def main():
         return
 
     st.subheader("Historical operational review — separate from the frozen test")
-    dataset = load_dataset(overview)
+    dataset = load_monitoring_dataset(overview)
+    monitoring_provenance = demo_provenance(overview, monitoring=True)
+    render_demo_provenance(monitoring_provenance)
     with st.sidebar:
         st.header("Review clock and rules")
         batch_ids = dataset.batches.batch_id.tolist()
-        remembered = preferences.get("batch", "B004" if "B004" in batch_ids else batch_ids[0])
+        remembered = preferences.get("batch", "MON-B004" if "MON-B004" in batch_ids else batch_ids[0])
         selected_batch = st.selectbox("Review batch", batch_ids, index=batch_ids.index(remembered) if remembered in batch_ids else 0, key="reliability_batch")
         scenario = st.selectbox("Controlled reliability example", list(FAULT_SCENARIOS), index=list(FAULT_SCENARIOS).index(preferences.get("scenario", FAULT_SCENARIOS[0])), key="reliability_scenario")
         residual_limit = st.number_input("Absolute residual limit (g/L)", min_value=0.01, value=preferences.get("residual_limit", 0.5), step=0.05, key="reliability_residual_limit")
@@ -154,7 +158,7 @@ def main():
     start = batch.metadata.measurement_timestamp.iloc[0]
     latest = max(batch.metadata.measurement_timestamp.max(), batch.assays.result_timestamp.max())
     maximum = float(np.ceil((latest - start).total_seconds() / 3600 * 2) / 2)
-    signature = sha256(json.dumps({"study": study.study_id, "artifact": bundle.metadata["artifact_stamp"], "overview": asdict(overview), "batch": selected_batch, "scenario": scenario, "domain": domain_limit}, sort_keys=True).encode()).hexdigest()
+    signature = sha256(json.dumps({"study": study.study_id, "artifact": bundle.metadata["artifact_stamp"], "overview": asdict(overview), "data_provenance": monitoring_provenance, "batch": selected_batch, "scenario": scenario, "domain": domain_limit}, sort_keys=True).encode()).hexdigest()
     review = st.session_state.get("reliability_review")
     if review is None or review.context_id != signature:
         review = ReliabilityReview(signature)
@@ -181,7 +185,7 @@ def main():
     cards[1].metric("Available assays", len(residuals))
     cards[2].metric("Assessed reference pairs", int(metrics.assessed_pairs.iloc[0]))
     cards[3].metric("Residual exceedances", int(residuals.residual_alarm.sum()))
-    st.caption(f"References available through {cutoff} · Inference uses the saved pipeline · Operational review may overlap training and is not a new independent test")
+    st.caption(f"References available through {cutoff} · Inference uses the saved pipeline · Separate monitoring demo seed and MON- identities · Operational review does not reopen or replace the frozen independent test")
     invalid = history.prediction_status.ne("ok")
     if invalid.any():
         st.warning(f"{int(invalid.sum())} revealed predictions are unavailable. Inspect missing/implausible input, domain, axis, or prediction flags. No reference or simulation truth is substituted.")
@@ -220,6 +224,7 @@ def main():
         st.dataframe(history, hide_index=True, width="stretch", key="reliability_history")
         st.dataframe(study.folds, hide_index=True, width="stretch")
         context = {"source": source, "model_version": bundle.version, "artifact_identity": bundle.metadata["artifact_identity"],
+            "data_provenance": monitoring_provenance,
             "artifact_stamp": bundle.metadata["artifact_stamp"], "review_simulation": asdict(overview), "batch_id": selected_batch,
             "scenario": scenario, "cutoff_utc": cutoff.isoformat(), "inference_rules": asdict(inference_rules),
             "training_reference_row_ids": reference.training_row_ids}

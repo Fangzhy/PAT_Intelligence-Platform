@@ -76,7 +76,8 @@ def main():
     st.caption("PAT INTELLIGENCE PLATFORM")
     st.title("Monitor the joint process pattern.")
     st.write("Reference-fitted PCA, Hotelling’s T², and SPE/Q for temperature, pH, dissolved oxygen, feed flow, and agitation.")
-    st.info("Synthetic historical comparison · Advisory only · Empirical reference limits · No manufacturing validation")
+    st.info("Historical development-data comparison · Advisory only · Empirical reference limits · No manufacturing validation")
+    st.caption("This page calibrates and compares historical development sensor batches from Overview. The separate MON- monitoring demo population is used by Data Acquisition, Process Monitoring and operational reliability review.")
     config = st.session_state.get("simulation_config", SimulationConfig())
     context = json.dumps(asdict(config), sort_keys=True)
     if st.session_state.get("mspc_data_context") != context:
