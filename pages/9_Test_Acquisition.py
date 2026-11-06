@@ -18,6 +18,7 @@ def main():
     st.badge("Test mode", icon=":material/science:", color="orange")
     st.session_state["monitoring_mode_requested"] = "Acquired stream"
     st.session_state["mspc_mode_requested"] = "Acquired sensor monitoring"
+    st.session_state["reliability_mode_requested"] = "Acquired data reliability"
     st.write("Receive new monitoring data from the separate synthetic population or a compatible HTTP source. The saved model rules process the received observations.")
     st.info("Monitoring inputs only · Same collection and cursor in Process Monitoring · No training or equipment control on this page")
     if st.button("Open Process Monitoring", key="acq_open_monitoring"):

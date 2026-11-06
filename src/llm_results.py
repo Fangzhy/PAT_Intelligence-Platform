@@ -181,6 +181,32 @@ def reliability_snapshot(study, evaluation, history, residuals, metrics, input_s
                    ["assays", "residuals", "domain", "phase"], context)
 
 
+def acquired_reliability_snapshot(review, bundle, *, source_kind="prepared_sources"):
+    """Bounded numeric facts from received-only diagnostics; identifiers stay private."""
+    facts = _Facts()
+    history, pairs, metrics = review["history"], review["residuals"], review["metrics"]
+    facts.add("Received prediction observations in review window", len(history), "operational_review", "observations")
+    facts.add("Unavailable predictions in review window", int(history.prediction_status.ne("ok").sum()), "operational_review", "observations")
+    facts.add("Currently eligible predictions in review window", int(history.current_eligible.sum()), "captured_current_status", "observations")
+    facts.add("Available received assay references", len(pairs), "operational_review", "assays")
+    facts.add("Assessed operational reference pairs", metrics.assessed_pairs.iloc[0], "operational_review", "pairs")
+    for name in ("RMSE", "MAE", "Bias", "R2"):
+        facts.add(f"Operational assessed-pair {name}", metrics[name].iloc[0], "operational_review", "dimensionless" if name == "R2" else "g/L")
+    for name, label in (("residual_alarm", "Residual exceedances"), ("bias_alarm", "Rolling bias exceedances")):
+        facts.add(label, int(pairs[name].fillna(False).sum()), "operational_review", "pairs")
+    facts.add("Matching training baseline available", review["context"]["baseline_available"], "training_reference", "boolean")
+    for name, label in (("input_shift", "Input"), ("prediction_shift", "Prediction")):
+        facts.add(f"{label} distribution shift flags", int(review[name].shift_flag.fillna(False).sum()), "operational_review", "features")
+    for name, scope in (("cv_metrics", "grouped_cv"), ("holdout_metrics", "independent_test")):
+        for metric, value in (bundle.metadata.get(name) or {}).items():
+            if metric in ("RMSE", "RMSEP", "MAE", "Bias", "R2"):
+                facts.add(f"Recorded {scope} {metric}", value, scope, "dimensionless" if metric == "R2" else "g/L")
+    return _finish("Model Reliability", bundle.target, source_kind, facts,
+        ["educational", "selection", "shift", "gaps", "monitoring", "prediction_reliability",
+         "frozen_test" if bundle.metadata.get("holdout_metrics") else "missing_test"],
+        ["assays", "domain", "phase", "freshness"], review["context"])
+
+
 def spectral_snapshot(axis, signal, baseline, smoothed, fourier_features, *, selected_count,
                       reference_count, peak_count, settings, pca_variance=None,
                       reconstruction_rmse=None, context, source_kind="synthetic"):
